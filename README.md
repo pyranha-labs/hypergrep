@@ -26,7 +26,7 @@ def on_match(line_index: int, match_id: int, line_ptr: ctypes.c_char_p) -> None:
     line = line_ptr.decode(errors='ignore')
     print(f'Custom print: {line.rstrip()}')
 
-hyper_utils.hyperscan(<file>, [<pattern>], hyper_utils.HYPERSCANNER_CALLBACK_TYPE(on_match))
+hyper_utils.hyperscan(<file>, [<pattern>], on_match)
 ```
 
 ## Limitations

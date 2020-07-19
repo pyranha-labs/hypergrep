@@ -25,9 +25,6 @@
 #include <hs.h>
 #include <zlib.h>
 
-// Maximum chunk size to read from compressed stream.
-#define Z_CHUNK (1<<16)
-
 // Return codes for failures from hyperscanner.
 typedef enum hyperscanner_ret {
     HYPERSCANNER_COMPILE_MEM = 1,
@@ -125,14 +122,57 @@ cleanup:
 }
 
 /*
+ * Scan a GZIP file using Intel Hyperscan.
+ *
+ * fileName: Location of a local file that can be read line by line.
+ * state: Stateful information used to track additional details from Intel Hyperscan during callbacks.
+ * db: A compiled Hyperscan pattern database.
+ * scratch: A per-thread Hyperscan scratch space allocated for this database.
+ * bufSize: How large of a char buffer to use while reading in strings. Reads up to first newline or len - 1.
+ */
+int hyperscan_gz(char* fileName, hyperscanner_state_t* state, hs_database_t* db, hs_scratch_t* scratch, int bufSize) {
+    int ret = 0;
+
+    // To avoid manual line scanning, use zlib gz* functions to open files and read into buffer.
+    // For details on manually reading gzips without gzopen: https://zlib.net/zlib_how.html
+    gzFile inputFile = gzopen(fileName, "rb");
+    if (inputFile == Z_NULL) {
+        // File could not be opened for reading due to permissions, or bad file type.
+        ret = HYPERSCANNER_GZ_OPEN;
+    }
+
+    char *buf = malloc(sizeof(char) * bufSize);
+    while (1) {
+        state->line = gzgets(inputFile, buf, bufSize);
+        if (state->line == Z_NULL) {
+            // EOF or unreadable file.
+            break;
+        }
+
+        // Hyperscan the buffer up to the end of the current line. ZLIB will read up to a newline or max buffer length.
+        if (hs_scan(db, state->line, strlen(state->line), 0, scratch, hs_callback, state) != HS_SUCCESS) {
+            fprintf(stderr, "ERROR: Unable to scan buffer. Exiting.\n");
+            ret = HYPERSCANNER_SCAN;
+            break;
+        }
+        state->lineNumber++;
+    }
+    gzclose(inputFile);
+
+    free(buf);
+    return ret;
+}
+
+/*
  * Scan a file using Intel Hyperscan for high performance using multiple regexes.
  *
  * fileName: Location of a local file that can be read line by line.
  * patterns: Regular expressions to be scanned against every line.
  * elements: Size the pattern array.
  * onEvent: Function to call with simplified match information from Intel Hyperscan.
+ * bufSize: How large of a char buffer to use while reading in strings. Reads up to first newline or len - 1.
  */
-int hyperscan(char* fileName, const char* const* patterns, const unsigned int elements, hs_event onEvent) {
+int hyperscan(char* fileName, const char* const* patterns, const unsigned int elements, hs_event onEvent, const int bufSize) {
     int ret = 0;
 
     // Initialize the Hyperscan database, scratch, and state. If any cannot be created, skip processing.
@@ -157,31 +197,8 @@ int hyperscan(char* fileName, const char* const* patterns, const unsigned int el
         goto cleanup;
     }
 
-    // To avoid manual line scanning, use zlib gz* functions to open files and read into buffer.
-    // For details on manually reading gzips without gzopen: https://zlib.net/zlib_how.html
-    gzFile inputFile = gzopen(fileName, "rb");
-    if (inputFile == Z_NULL) {
-        // File could not be opened for reading due to permissions, or bad file type.
-        ret = HYPERSCANNER_GZ_OPEN;
-    }
-
-    char buf[Z_CHUNK];
-    while (1) {
-        state->line = gzgets(inputFile, buf, Z_CHUNK);
-        if (state->line == Z_NULL) {
-            // EOF or unreadable file.
-            break;
-        }
-
-        // Hyperscan the buffer up to the end of the current line. ZLIB will read up to a newline or max buffer length.
-        if (hs_scan(db, state->line, strlen(state->line), 0, scratch, hs_callback, state) != HS_SUCCESS) {
-            fprintf(stderr, "ERROR: Unable to scan buffer. Exiting.\n");
-            ret = HYPERSCANNER_SCAN;
-            break;
-        }
-        state->lineNumber++;
-    }
-    gzclose(inputFile);
+    // Route scan based on file type to isolate dynamic buffer allocation scope.
+    ret = hyperscan_gz(fileName, state, db, scratch, bufSize);
 
 cleanup:
     // Ensure the scratch, database, and state are freed before exiting.
@@ -210,5 +227,5 @@ int main(int argc, char *argv[]) {
         patterns[i - 2] = argv[i];
     }
 
-    return hyperscan(inputFile, patterns, elements, event_handler);
+    return hyperscan(inputFile, patterns, elements, event_handler, 65535);
 }

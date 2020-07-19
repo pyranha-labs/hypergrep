@@ -35,9 +35,7 @@ def main() -> None:
     """Primary function to scan text file."""
     args = parse_args()
 
-    # Wrap the callback in the ctype to allow passing to C functions.
-    callback = hyper_utils.HYPERSCANNER_CALLBACK_TYPE(on_match)
-    hyper_utils.hyperscan(args.file, [args.pattern], callback)
+    hyper_utils.hyperscan(args.file, [args.pattern], on_match)
 
 
 if __name__ == '__main__':

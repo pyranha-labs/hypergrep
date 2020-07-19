@@ -47,7 +47,7 @@ def _get_hyperscanner() -> ctypes.cdll:
     return _HYPERSCANNER_LIB
 
 
-def hyperscan(path: str, patterns: list[str], callback: Callable) -> int:
+def hyperscan(path: str, patterns: list, callback: Callable, buffer_size: int = 65535) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
 
     Supports GZIP and Plain Text files.
@@ -56,6 +56,7 @@ def hyperscan(path: str, patterns: list[str], callback: Callable) -> int:
         path: Location of the file to be read by hyperscan.
         patterns: Regex patterns in text format used to match lines.
         callback: Where the line index, pattern id, and line as bytes. Must match HYPERSCANNER_CALLBACK_TYPE.
+        buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
 
     Returns:
         Response code received from the C backend if there was a failure, 0 otherwise.
@@ -78,5 +79,6 @@ def hyperscan(path: str, patterns: list[str], callback: Callable) -> int:
     # Load and keep reference to the hyperscanner library to allow calling the functions.
     hyperscanner_lib = _get_hyperscanner()
 
-    ret_code = hyperscanner_lib.hyperscan(path.encode(), pattern_array, len(pattern_array), callback)
+    callback = HYPERSCANNER_CALLBACK_TYPE(callback)
+    ret_code = hyperscanner_lib.hyperscan(path.encode(), pattern_array, len(pattern_array), callback, buffer_size)
     return ret_code

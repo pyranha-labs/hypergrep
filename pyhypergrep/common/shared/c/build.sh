@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # This script is used to compile C code into shared libraries usable by Python.
-# Recommended way to run is through docker. For hyperscan5, this must be run against disco. For hyperscan4, use bionic.
-# sudo docker run --rm -it -v ~/Development/pyhypergrep:/mnt/pyhypergrep ubuntu:disco bash -c '/mnt/pyhypergrep/pyhypergrep/common/shared/c/build.sh'
+# Recommended way to run is through docker. For hyperscan5, this must be run against focal. For hyperscan4, use bionic.
+# docker run --rm -it -v ~/Development/pyhypergrep:/mnt/pyhypergrep ubuntu:focal bash -c '/mnt/pyhypergrep/pyhypergrep/common/shared/c/build.sh'
 
 # Update the base dependencies.
 apt-get update && apt-get install -y gcc git libhyperscan5 libhyperscan-dev zlib1g-dev pkg-config

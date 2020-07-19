@@ -24,7 +24,7 @@ TEST_CASES = {
             'args': [
                 TEST_FILE,
                 ['bar'],
-                hyper_utils.HYPERSCANNER_CALLBACK_TYPE(_dummy_callback),
+                _dummy_callback,
             ],
             'expected': [
                 '1:foobar',
@@ -38,7 +38,7 @@ TEST_CASES = {
                     'bar',
                     'food',
                 ],
-                hyper_utils.HYPERSCANNER_CALLBACK_TYPE(_dummy_callback),
+                _dummy_callback,
             ],
             'expected': [
                 '1:foobar',
