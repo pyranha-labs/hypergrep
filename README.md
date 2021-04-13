@@ -2,7 +2,7 @@
 
 PyHyperGrep is a Python + Intel Hyperscan Global Regular Expression Processing library. While a standard grep is
 designed to print, this is designed to allow full control over processing matches. The library supports scanning
-plaintext and gzip compressed files for regular expressions, and customizing the action to take when matched.
+plaintext, gzip, and ztsd compressed files for regular expressions, and customizing the action to take when matched.
 
 For full information on the amazing performance that can be obtained through Intel Hyperscan with, refer to:  
 [Hyperscan](https://github.com/intel/hyperscan)

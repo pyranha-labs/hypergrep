@@ -6,11 +6,11 @@
  *
  * Build instructions:
  *     Standalone:
- *     gcc -o hyperscanner hyperscanner.c $(pkg-config --cflags --libs libhs zlib)
+ *     gcc -o hyperscanner hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
  *
  *     Shared library:
- *     gcc -c -Wall -Werror -fpic hyperscanner.c $(pkg-config --cflags --libs libhs zlib)
- *     gcc -shared -o libhyperscanner.so hyperscanner.o $(pkg-config --cflags --libs libhs zlib)
+ *     gcc -c -Wall -Werror -fpic hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
+ *     gcc -shared -o libhyperscanner.so hyperscanner.o $(pkg-config --cflags --libs libhs libzstd zlib)
  *
  * Usage:
  *     ./hstest <pattern> <input file>
@@ -23,7 +23,9 @@
 #include <string.h>
 
 #include <hs.h>
-#include <zlib.h>
+// Use zstd_zlibwrapper.h instead of zlib.h, it has equivalents for all required gz* calls compatible with both types.
+// If a non-ZSTD compatible build is required, replace with zlib.h and no additional changes are needed.
+#include <zstd_zlibwrapper.h>
 
 // Return codes for failures from hyperscanner.
 typedef enum hyperscanner_ret {
