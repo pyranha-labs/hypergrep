@@ -63,6 +63,38 @@ def grep(file: str, pattern: str, with_index: bool) -> List[Union[str, Tuple[int
     return lines
 
 
+def print_results(
+        results: list,
+        file_name: str,
+        with_file_name: bool = False,
+        with_line_number: bool = False,
+) -> None:
+    """Print the full results to the screen based on user requested formatting.
+
+    Args:
+        results: Results of hyperscan processing.
+        file_name: Path where the results were found.
+        with_file_name: Whether to display the file name as a prefix.
+        with_line_number: Whether to display the line number of each match as a prefix.
+    """
+    # Performing multiple if/then/else statement in a loop can be performance intensive.
+    # Instead of performing one loop that performs the checks every time, perform the checks once, then loop.
+    if with_file_name:
+        if with_line_number:
+            for line in results:
+                print(f'{file_name}:{line[0]}:{line[1]}')
+        else:
+            for line in results:
+                print(f'{file_name}:{line}')
+    else:
+        if with_line_number:
+            for line in results:
+                print(f'{line[0]}:{line[1]}')
+        else:
+            for line in results:
+                print(line)
+
+
 def read_stdin() -> Generator[str, None, None]:
     """Read from the system's standard input, such as pipes from other commands.
 
@@ -86,6 +118,8 @@ def parse_args() -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
+        # Do not add the default help, add it manually. Grep uses -h as a standard arg.
+        add_help=False,
         description=dedent('''\
             Fast, multi-threaded, grep (Global Regular Expression Print).
 
@@ -117,6 +151,12 @@ def parse_args() -> argparse.Namespace:
                         help='Regex pattern to use.')
     parser.add_argument('files', nargs='*',
                         help='Files to scan.')
+    filename_group = parser.add_mutually_exclusive_group()
+    # Default to Nones in order to tell if user explicitly requested value, instead of default of False.
+    filename_group.add_argument('-H', '--with-filename', action='store_true', default=None,
+                                help='Print the file name for each match. This is the default when there is more than one file to search.')
+    filename_group.add_argument('-h', '--no-filename', action='store_true', default=None,
+                                help='Suppress the prefixing of file names on output. This is the default when there is only one file to search.')
     parser.add_argument('-n', '--line-number', action='store_true',
                         help='Prefix each line of output with the 1-based line number within its input file.')
     parser.add_argument('-c', '--count', action='store_true',
@@ -128,6 +168,9 @@ def parse_args() -> argparse.Namespace:
                         help='Print results as files finish, instead of waiting for previous files to complete.')
     parser.add_argument('--no-sort', dest='sort_files', action='store_false',
                         help='Keep original file order instead of naturally sorting.')
+    # Add help manually, using only --help. Grep uses -h as a standard arg.
+    parser.add_argument('--help', action='help', default=argparse.SUPPRESS,
+                        help='show this help message and exit')
     parser.set_defaults(parser=parser)
     args = parser.parse_args()
     return args
@@ -142,6 +185,15 @@ def main() -> None:
     if not files:
         print(args.parser.usage)
         raise SystemExit()
+
+    # Default to show filename, and then check for user manual overrides, or single file override.
+    with_filename = True
+    if args.no_filename is not None:
+        with_filename = False
+    elif args.with_filename is not None:
+        with_filename = True
+    elif len(files) == 1:
+        with_filename = False
 
     pattern = args.pattern[0]
     pending = {}
@@ -168,12 +220,12 @@ def main() -> None:
         elif args.count:
             print(f'{file_name}:{len(grep_result)}')
         else:
-            if args.line_number:
-                for line in grep_result:
-                    print(f'{file_name}:{line[0]}:{line[1]}')
-            else:
-                for line in grep_result:
-                    print(f'{file_name}:{line}')
+            print_results(
+                grep_result,
+                file_name,
+                with_file_name=with_filename,
+                with_line_number=args.line_number,
+            )
         next_index += 1
         if next_index in pending:
             _on_grep_finish((next_index, pending.pop(next_index)))
