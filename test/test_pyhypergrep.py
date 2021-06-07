@@ -8,6 +8,7 @@ import sys
 from typing import Any
 from typing import Callable
 
+from pyhypergrep import hyperscanner
 from pyhypergrep.common import hyper_utils
 
 
@@ -47,6 +48,30 @@ TEST_CASES = {
             ]
         },
     },
+    'grep': {
+        'one pattern, no index': {
+            'args': [
+                TEST_FILE,
+                'bar',
+                False,
+            ],
+            'expected': [
+                'foobar',
+                'barfoo'
+            ]
+        },
+        'one pattern, with index': {
+            'args': [
+                TEST_FILE,
+                'bar',
+                True,
+            ],
+            'expected': [
+                (2, 'foobar'),
+                (3, 'barfoo'),
+            ]
+        },
+    },
 }
 
 
@@ -77,6 +102,20 @@ def run_basic_test_case(test_case: dict, context: Callable, comparator: Callable
             comparator(result, expected)
         else:
             assert result == expected, message
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['grep'].values()),
+    ids=list(TEST_CASES['grep'].keys()),
+)
+@pytest.mark.skipif(
+    sys.platform != 'linux',
+    reason='Hyperscan libraries only support Linux',
+)
+def test_grep(test_case: dict) -> None:
+    """Tests for grep function."""
+    run_basic_test_case(test_case, hyperscanner.grep)
 
 
 @pytest.mark.parametrize(

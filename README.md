@@ -13,6 +13,12 @@ For full information on the amazing performance that can be obtained through Int
 Read a file with the example command:
 ```
 # pyhypergrep <regex> <file>
+pyhypergrep/scanner.py pattern ./pyhypergrep/pyhypergrep/scanner.py
+```
+
+Read multiple files with the hyperscanner example command:
+```
+# pyhypergrep <regex> <file(s)>
 pyhypergrep pattern ./pyhypergrep/pyhypergrep/scanner.py
 ```
 
