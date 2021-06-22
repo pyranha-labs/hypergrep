@@ -4,10 +4,17 @@ import ctypes
 import os
 
 from typing import Callable
+from typing import List
 
 _INTEL_HYPERSCAN_LIB = None
 _HYPERSCANNER_LIB = None
 _ZSTD_LIB = None
+
+# Flags pulled from hs_compile.h
+HS_FLAG_CASELESS = 1
+HS_FLAG_DOTALL = 2
+HS_FLAG_MULTILINE = 4
+HS_FLAG_SINGLEMATCH = 8
 
 # C function type used by hyperscanner to send lines back to the python.
 HYPERSCANNER_CALLBACK_TYPE = ctypes.CFUNCTYPE(
@@ -64,7 +71,13 @@ def _get_zstd_lib() -> ctypes.cdll:
     return _ZSTD_LIB
 
 
-def hyperscan(path: str, patterns: list, callback: Callable, buffer_size: int = 65535) -> int:
+def hyperscan(
+        path: str,
+        patterns: List[str],
+        callback: Callable,
+        buffer_size: int = 65535,
+        flags: List[int] = (),
+) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
 
     Supports GZIP, ZSTD, and Plain Text files.
@@ -75,10 +88,23 @@ def hyperscan(path: str, patterns: list, callback: Callable, buffer_size: int = 
         callback: Where every regex hit (line index, pattern id, and byte string) are sent.
             Must match HYPERSCANNER_CALLBACK_TYPE.
         buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
+        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
+            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
 
     Returns:
         Response code received from the C backend if there was a failure, 0 otherwise.
     """
+    if not flags:
+        # Set the default flags for most common usage if none were provided.
+        # Hyperscan flags: https://intel.github.io/hyperscan/dev-reference/api_files.html
+        # HS_FLAG_DOTALL for performance.
+        # HS_FLAG_MULTILINE to match ^ and $ against newlines.
+        # HS_FLAG_SINGLEMATCH to stop after first callback for a pattern.
+        flags = [HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH for _ in patterns]
+    if len(flags) != len(patterns):
+        raise ValueError(f'Found {len(flags)} flags, expecting {len(patterns)}. Hyperscan flags must be provided for each regex to compile the database.')
+
     # C string arrays must be created by performing the following:
     # 1. Convert all strings to bytes.
     # 2. Find the C char pointer class for the array length, i.e. a list of 29 strings is a c_char_p_Array_29
@@ -91,6 +117,8 @@ def hyperscan(path: str, patterns: list, callback: Callable, buffer_size: int = 
         encoded_patterns.append(pattern.encode())
     pattern_array = (ctypes.c_char_p * (len(encoded_patterns)))()
     pattern_array[:] = encoded_patterns
+    flags_array = (ctypes.c_uint * (len(flags)))()
+    flags_array[:] = [ctypes.c_uint(flag) for flag in flags]
 
     # Cache ZSTD/Hyperscan libraries first to provide hyperscanner lib fallback to static builds.
     # These will only be used if the OS does not have the libraries installed already.
@@ -100,5 +128,5 @@ def hyperscan(path: str, patterns: list, callback: Callable, buffer_size: int = 
     hyperscanner_lib = _get_hyperscanner_lib()
 
     callback = HYPERSCANNER_CALLBACK_TYPE(callback)
-    ret_code = hyperscanner_lib.hyperscan(path.encode(), pattern_array, len(pattern_array), callback, buffer_size)
+    ret_code = hyperscanner_lib.hyperscan(path.encode(), pattern_array, flags_array, len(pattern_array), callback, buffer_size)
     return ret_code

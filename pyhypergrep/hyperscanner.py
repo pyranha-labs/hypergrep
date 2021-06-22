@@ -29,12 +29,18 @@ def _grep_with_index(index: int, args: Iterable) -> Tuple[int, Any]:
     return index, result
 
 
-def grep(file: str, pattern: str, with_index: bool) -> List[Union[str, Tuple[int, str]]]:
+def grep(
+        file: str,
+        pattern: str,
+        ignore_case: bool,
+        with_index: bool,
+) -> List[Union[str, Tuple[int, str]]]:
     """Search a file for a regex pattern.
 
     Args:
         file: Path to a file on the local filesystem.
         pattern: Regex pattern compatible with Intel Hyperscan.
+        ignore_case: Perform case-insensitive matching.
         with_index: Whether to return the line indexes with the lines.
 
     Returns:
@@ -59,8 +65,87 @@ def grep(file: str, pattern: str, with_index: bool) -> List[Union[str, Tuple[int
         raise FileNotFoundError('No such file or directory')
     if os.path.isdir(file):
         raise ValueError('is a directory ')
-    hyper_utils.hyperscan(file, [pattern], _c_callback)
+
+    # Always use hyperscan function defaults, but add caseless if user requested.
+    flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
+    if ignore_case:
+        flags |= hyper_utils.HS_FLAG_CASELESS
+    hyper_utils.hyperscan(file, [pattern], _c_callback, flags=[flags])
     return lines
+
+
+def parallel_grep(
+        files: list,
+        pattern: str,
+        ignore_case: bool = False,
+        ordered_results: bool = True,
+        count_results: bool = False,
+        total_results: bool = False,
+        with_file_name: bool = False,
+        with_line_number: bool = False,
+) -> None:
+    """Search files for a regex pattern and print the results based on user requested formatting.
+
+    Args:
+        files: All files to scan for pattern.
+        pattern: Regex pattern compatible with Intel Hyperscan.
+        ignore_case: Perform case insensitive matching.
+        ordered_results: Wait for previous files to complete before printing results.
+        count_results: Print a count of matching lines for each input file, instead of printing matches.
+        total_results: Print a cumulative total across all files of matching lines, instead of printing matches.
+        with_file_name: Whether to display the file name as a prefix.
+        with_line_number: Whether to display the line number of each match as a prefix.
+    """
+    pending = {}
+    total = 0
+    next_index = 0
+
+    def _on_grep_finish(result: Tuple[int, List[Union[str, Tuple[int, str]]]]) -> None:
+        """Callback to parallel processing pool to track and print completed requests."""
+        nonlocal total
+        nonlocal next_index
+
+        grep_index, grep_result = result
+        if ordered_results and grep_index != next_index:
+            pending[grep_index] = grep_result
+            return
+        file_name = files[grep_index]
+        if isinstance(grep_result, Exception):
+            # Error message style taken from "grep" output format.
+            print(f'hyperscanner: {file_name}: {grep_result}')
+            return
+        if total_results:
+            total += len(grep_result)
+        elif count_results:
+            if with_file_name:
+                print(f'{file_name}:{len(result)}')
+            else:
+                print(f'{len(result)}')
+        else:
+            try:
+                print_results(
+                    grep_result,
+                    file_name,
+                    with_file_name=with_file_name,
+                    with_line_number=with_line_number,
+                )
+            except BrokenPipeError:
+                # NOTE: Piping output to additional commands such as head may close the output file.
+                # This is unavoidable, and the only thing that can be done is catch, and exit.
+                raise SystemExit(1)
+        next_index += 1
+        if next_index in pending:
+            _on_grep_finish((next_index, pending.pop(next_index)))
+
+    with ThreadPool(processes=max(multiprocessing.cpu_count() - 1, 1)) as pool:
+        jobs = []
+        for index, file in enumerate(files):
+            jobs.append(pool.apply_async(_grep_with_index, (index, (file, pattern, ignore_case, with_line_number)), callback=_on_grep_finish))
+        for job in jobs:
+            job.get()
+
+    if total_results:
+        print(total)
 
 
 def print_results(
@@ -157,6 +242,8 @@ def parse_args() -> argparse.Namespace:
                                 help='Print the file name for each match. This is the default when there is more than one file to search.')
     filename_group.add_argument('-h', '--no-filename', action='store_true', default=None,
                                 help='Suppress the prefixing of file names on output. This is the default when there is only one file to search.')
+    parser.add_argument('-i', '--ignore-case', action='store_true',
+                        help='Perform case insensitive matching.  By default, grep is case sensitive.')
     parser.add_argument('-n', '--line-number', action='store_true',
                         help='Prefix each line of output with the 1-based line number within its input file.')
     parser.add_argument('-c', '--count', action='store_true',
@@ -195,51 +282,16 @@ def main() -> None:
     elif len(files) == 1:
         with_filename = False
 
-    pattern = args.pattern[0]
-    pending = {}
-    total = 0
-    next_index = 0
-
-    def _on_grep_finish(result: Tuple[int, List[Union[str, Tuple[int, str]]]]) -> None:
-        """Callback to parallel processing pool to track and print completed requests."""
-        nonlocal total
-        nonlocal next_index
-
-        grep_index, grep_result = result
-        if args.ordered and grep_index != next_index:
-            pending[grep_index] = grep_result
-            return
-
-        file_name = files[grep_index]
-        if isinstance(grep_result, Exception):
-            # Error message style taken from "grep" output format.
-            print(f'hyperscanner: {file_name}: {grep_result}')
-            return
-        if args.total:
-            total += len(grep_result)
-        elif args.count:
-            print(f'{file_name}:{len(grep_result)}')
-        else:
-            print_results(
-                grep_result,
-                file_name,
-                with_file_name=with_filename,
-                with_line_number=args.line_number,
-            )
-        next_index += 1
-        if next_index in pending:
-            _on_grep_finish((next_index, pending.pop(next_index)))
-
-    with ThreadPool(processes=max(multiprocessing.cpu_count() - 1, 1)) as pool:
-        jobs = []
-        for index, file in enumerate(files):
-            jobs.append(pool.apply_async(_grep_with_index, (index, (file, pattern, args.line_number)), callback=_on_grep_finish))
-        for job in jobs:
-            job.get()
-    pool.close()
-
-    if args.total:
-        print(total)
+    parallel_grep(
+        files=files,
+        pattern=args.pattern[0],
+        ignore_case=args.ignore_case,
+        ordered_results=args.ordered,
+        count_results=args.count,
+        total_results=args.total,
+        with_file_name=with_filename,
+        with_line_number=args.line_number
+    )
 
 
 if __name__ == '__main__':

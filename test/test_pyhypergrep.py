@@ -54,6 +54,7 @@ TEST_CASES = {
                 TEST_FILE,
                 'bar',
                 False,
+                False,
             ],
             'expected': [
                 'foobar',
@@ -64,6 +65,7 @@ TEST_CASES = {
             'args': [
                 TEST_FILE,
                 'bar',
+                False,
                 True,
             ],
             'expected': [
