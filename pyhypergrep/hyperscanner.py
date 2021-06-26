@@ -34,7 +34,8 @@ def grep(
         pattern: str,
         ignore_case: bool,
         with_index: bool,
-) -> List[Union[str, Tuple[int, str]]]:
+        count_only: bool,
+) -> Union[int, List[Union[str, Tuple[int, str]]]]:
     """Search a file for a regex pattern.
 
     Args:
@@ -42,23 +43,28 @@ def grep(
         pattern: Regex pattern compatible with Intel Hyperscan.
         ignore_case: Perform case-insensitive matching.
         with_index: Whether to return the line indexes with the lines.
+        count_only: Whether to count the matches, instead of decode the byte lines and store them.
 
     Returns:
-        List of strings, or list of tuples with the line index, matching the regex pattern.
+        Line count, or list of lines, or list of tuples with the line index and matching line.
 
     Raises:
         FileNotFoundError if the file does not exist.
         ValueError if the file is a directory.
     """
-    lines = []
+    lines = [] if not count_only else 0
 
     def _c_callback(line_index: int, unused_match_id: int, line_ptr: ctypes.c_char_p) -> None:
         """Called by the C library everytime it finds a matching line."""
-        line = line_ptr.decode(errors='ignore').rstrip()
-        if with_index:
-            lines.append((line_index + 1, line))
+        nonlocal lines
+        if count_only:
+            lines += 1
         else:
-            lines.append(line)
+            line = line_ptr.decode(errors='ignore').rstrip()
+            if with_index:
+                lines.append((line_index + 1, line))
+            else:
+                lines.append(line)
 
     # Exception messages taken directly from "grep" error messages.
     if not os.path.exists(file):
@@ -115,12 +121,12 @@ def parallel_grep(
             print(f'hyperscanner: {file_name}: {grep_result}')
             return
         if total_results:
-            total += len(grep_result)
+            total += grep_result
         elif count_results:
             if with_file_name:
-                print(f'{file_name}:{len(result)}')
+                print(f'{file_name}:{grep_result}')
             else:
-                print(f'{len(result)}')
+                print(f'{grep_result}')
         else:
             try:
                 print_results(
@@ -140,7 +146,8 @@ def parallel_grep(
     with ThreadPool(processes=max(multiprocessing.cpu_count() - 1, 1)) as pool:
         jobs = []
         for index, file in enumerate(files):
-            jobs.append(pool.apply_async(_grep_with_index, (index, (file, pattern, ignore_case, with_line_number)), callback=_on_grep_finish))
+            args = (file, pattern, ignore_case, with_line_number, count_results or total_results)
+            jobs.append(pool.apply_async(_grep_with_index, (index, args), callback=_on_grep_finish))
         for job in jobs:
             job.get()
 

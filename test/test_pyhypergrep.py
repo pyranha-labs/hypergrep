@@ -55,6 +55,7 @@ TEST_CASES = {
                 'bar',
                 False,
                 False,
+                False,
             ],
             'expected': [
                 'foobar',
@@ -67,6 +68,7 @@ TEST_CASES = {
                 'bar',
                 False,
                 True,
+                False,
             ],
             'expected': [
                 (2, 'foobar'),
