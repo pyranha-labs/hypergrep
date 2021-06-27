@@ -3,7 +3,6 @@
 """High performance python grep using Intel Hyperscan."""
 
 import argparse
-import ctypes
 import multiprocessing
 import os
 import sys
@@ -91,18 +90,20 @@ def parallel_grep(
         total_results: bool = False,
         with_file_name: bool = False,
         with_line_number: bool = False,
+        use_multithreading: bool = True,
 ) -> None:
     """Search files for a regex pattern and print the results based on user requested formatting.
 
     Args:
         files: All files to scan for pattern.
         pattern: Regex pattern compatible with Intel Hyperscan.
-        ignore_case: Perform case insensitive matching.
+        ignore_case: Perform case-insensitive matching.
         ordered_results: Wait for previous files to complete before printing results.
         count_results: Print a count of matching lines for each input file, instead of printing matches.
         total_results: Print a cumulative total across all files of matching lines, instead of printing matches.
         with_file_name: Whether to display the file name as a prefix.
         with_line_number: Whether to display the line number of each match as a prefix.
+        use_multithreading: Whether to use multithreading pool instead of multiprocessing.
     """
     pending = {}
     total = 0
@@ -145,7 +146,8 @@ def parallel_grep(
         if next_index in pending:
             _on_grep_finish((next_index, pending.pop(next_index)))
 
-    with ThreadPool(processes=max(multiprocessing.cpu_count() - 1, 1)) as pool:
+    workers = max(multiprocessing.cpu_count() - 1, 1)
+    with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
         jobs = []
         for index, file in enumerate(files):
             args = (file, pattern, ignore_case, with_line_number, count_results or total_results)
@@ -218,11 +220,12 @@ def parse_args() -> argparse.Namespace:
             Fast, multi-threaded, grep (Global Regular Expression Print).
 
             Intel Hyperscan based regex processor. Provides the following benefits over standard implementations:
-                1. Extremely fast regex pattern matching, often faster than standard PCRE.
-                2. Bypasses Python parallel processing limitations by reading files outside the global lock.
-                3. Prevents the need to subprocess, a common design in Python based regex commands.
+                1. Extremely fast multi-pattern regex matching.
+                2. Bypasses Python multithreading limitations by reading files outside the global lock.
+                3. Prevents the need to subprocess.
                     a. Reduces memory usage.
                     b. Reduces CPU usage.
+                    c. Reduces process chain. 1 process, instead of python > zgrep > zcat > grep.
 
             Differences from standard "grep" derivatives:
                 1. Does not pass along arguments to a "grep" subprocess. Only allows arguments declared in this command.
@@ -264,6 +267,8 @@ def parse_args() -> argparse.Namespace:
                         help='Print results as files finish, instead of waiting for previous files to complete.')
     parser.add_argument('--no-sort', dest='sort_files', action='store_false',
                         help='Keep original file order instead of naturally sorting.')
+    parser.add_argument('--mp', action='store_false', dest='use_multithreading',
+                        help='Use multiprocessing pool instead of multithreading. May help print extremely large results faster (1M+).')
     # Add help manually, using only --help. Grep uses -h as a standard arg.
     parser.add_argument('--help', action='help', default=argparse.SUPPRESS,
                         help='show this help message and exit')
@@ -299,7 +304,8 @@ def main() -> None:
         count_results=args.count,
         total_results=args.total,
         with_file_name=with_filename,
-        with_line_number=args.line_number
+        with_line_number=args.line_number,
+        use_multithreading=args.use_multithreading,
     )
 
 
