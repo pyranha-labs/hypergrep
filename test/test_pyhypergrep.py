@@ -59,8 +59,8 @@ TEST_CASES = {
                 False,
             ],
             'expected': [
-                'foobar',
-                'barfoo'
+                'foobar\n',
+                'barfoo\n'
             ]
         },
         'one pattern, with index': {
@@ -72,8 +72,8 @@ TEST_CASES = {
                 False,
             ],
             'expected': [
-                (2, 'foobar'),
-                (3, 'barfoo'),
+                (2, 'foobar\n'),
+                (3, 'barfoo\n'),
             ]
         },
     },

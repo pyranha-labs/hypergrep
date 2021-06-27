@@ -5,6 +5,7 @@
 import argparse
 import multiprocessing
 import os
+import re
 import sys
 
 from multiprocessing.pool import ThreadPool
@@ -61,7 +62,7 @@ def grep(
         else:
             for index in range(count):
                 match = matches[index]
-                line = match.line.decode(errors='ignore').rstrip()
+                line = match.line.decode(errors='ignore')
                 if with_index:
                     lines.append((match.line_number + 1, line))
                 else:
@@ -146,7 +147,7 @@ def parallel_grep(
         if next_index in pending:
             _on_grep_finish((next_index, pending.pop(next_index)))
 
-    workers = max(multiprocessing.cpu_count() - 1, 1)
+    workers = min(max(multiprocessing.cpu_count() - 1, 1), len(files))
     with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
         jobs = []
         for index, file in enumerate(files):
@@ -178,17 +179,17 @@ def print_results(
     if with_file_name:
         if with_line_number:
             for line in results:
-                print(f'{file_name}:{line[0]}:{line[1]}')
+                print(f'{file_name}:{line[0]}:{line[1]}', end='')
         else:
             for line in results:
-                print(f'{file_name}:{line}')
+                print(f'{file_name}:{line}', end='')
     else:
         if with_line_number:
             for line in results:
-                print(f'{line[0]}:{line[1]}')
+                print(f'{line[0]}:{line[1]}', end='')
         else:
             for line in results:
-                print(line)
+                print(line, end='')
 
 
 def read_stdin() -> Generator[str, None, None]:
@@ -299,9 +300,18 @@ def main() -> None:
     elif len(files) == 1:
         with_filename = False
 
+    # Perform a basic regex compilation test before Hyperscan is started.
+    # This does not guarantee 100% compatibility, but reduces the need for Hyperscan to validate common errors.
+    pattern = args.pattern[0]
+    try:
+        re.compile(pattern)
+    except Exception as error:
+        print(f'hyperscanner: invalid regex: {error}')
+        raise SystemExit(1)
+
     parallel_grep(
         files=files,
-        pattern=args.pattern[0],
+        pattern=pattern,
         ignore_case=args.ignore_case,
         ordered_results=args.ordered,
         count_results=args.count,
