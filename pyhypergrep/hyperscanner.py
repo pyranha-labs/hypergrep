@@ -248,6 +248,9 @@ def parse_args() -> argparse.Namespace:
                         help='Regex pattern to use.')
     parser.add_argument('files', nargs='*',
                         help='Files to scan.')
+    parser.add_argument('-a', '--text', action='store_true',
+                        help='Process a binary file as if it were text; this is equivalent to the --binary-files=text option. '
+                             '(Dummy option for cross-compatibility with grep. Files are always processed as binary.)')
     filename_group = parser.add_mutually_exclusive_group()
     # Default to Nones in order to tell if user explicitly requested value, instead of default of False.
     filename_group.add_argument('-H', '--with-filename', action='store_true', default=None,
