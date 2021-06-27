@@ -1,21 +1,21 @@
 """Simple Intel Hyperscan file scanner."""
 
 import argparse
-import ctypes
 
 from pyhypergrep.common import hyper_utils
 
 
-def on_match(line_index: int, match_id: int, line_ptr: ctypes.c_char_p) -> None:
+def on_match(matches: list, count: int) -> None:
     """Callback for C library to send results.
 
     Args:
-        line_index: Position of the line in a file.
-        match_id: The match group/regex that this data was matched to.
-        line_ptr: C pointer to bytes that can be decoded into text.
+        matches: Batch of results to regex patterns returned by C.
+        count: How many entries are in the result batch.
     """
-    line = line_ptr.decode(errors='ignore')
-    print(f'{line_index}:{line.rstrip()}')
+    for index in range(count):
+        match = matches[index]
+        line = match.line.decode(errors='ignore')
+        print(f'{match.line_number}:{line.rstrip()}')
 
 
 def parse_args() -> argparse.Namespace:

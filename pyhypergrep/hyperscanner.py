@@ -54,17 +54,19 @@ def grep(
     """
     lines = [] if not count_only else 0
 
-    def _c_callback(line_index: int, unused_match_id: int, line_ptr: ctypes.c_char_p) -> None:
+    def _c_callback(matches: list, count: int) -> None:
         """Called by the C library everytime it finds a matching line."""
         nonlocal lines
         if count_only:
-            lines += 1
+            lines += count
         else:
-            line = line_ptr.decode(errors='ignore').rstrip()
-            if with_index:
-                lines.append((line_index + 1, line))
-            else:
-                lines.append(line)
+            for index in range(count):
+                match = matches[index]
+                line = match.line.decode(errors='ignore').rstrip()
+                if with_index:
+                    lines.append((match.line_number + 1, line))
+                else:
+                    lines.append(line)
 
     # Exception messages taken directly from "grep" error messages.
     if not os.path.exists(file):

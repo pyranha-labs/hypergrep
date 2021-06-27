@@ -1,6 +1,5 @@
 """Test cases for the pyhypergrep module."""
 
-import ctypes
 import os
 import pytest
 import sys
@@ -12,10 +11,12 @@ from pyhypergrep import hyperscanner
 from pyhypergrep.common import hyper_utils
 
 
-def _dummy_callback(line_index: int, match_id: int, line_ptr: ctypes.c_char_p) -> None:
+def _dummy_callback(matches: list, count: int) -> None:
     """Callback for C library to send results."""
-    line = line_ptr.decode(errors='ignore')
-    print(f'{line_index}:{line.rstrip()}')
+    for index in range(count):
+        match = matches[index]
+        line = match.line.decode(errors='ignore')
+        print(f'{match.line_number}:{line.rstrip()}')
 
 
 TEST_FILE = os.path.join(os.path.dirname(__file__), 'dummyfile.txt')

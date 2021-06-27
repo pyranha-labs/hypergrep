@@ -28,9 +28,11 @@ import ctypes
 
 from pyhypergrep.common import hyper_utils
 
-def on_match(line_index: int, match_id: int, line_ptr: ctypes.c_char_p) -> None:
-    line = line_ptr.decode(errors='ignore')
-    print(f'Custom print: {line.rstrip()}')
+def on_match(matches: list, count: int) -> None:
+    for index in range(count):
+        match = matches[index]
+        line = match.line.decode(errors='ignore')
+        print(f'Custom print: {line.rstrip()}')
 
 hyper_utils.hyperscan(<file>, [<pattern>], on_match)
 ```

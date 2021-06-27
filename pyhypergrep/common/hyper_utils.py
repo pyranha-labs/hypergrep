@@ -16,12 +16,31 @@ HS_FLAG_DOTALL = 2
 HS_FLAG_MULTILINE = 4
 HS_FLAG_SINGLEMATCH = 8
 
-# C function type used by hyperscanner to send lines back to the python.
+
+class HyperscannerResult(ctypes.Structure):
+    """Information about a regex result used to buffer matches from Intel Hyperscan before callbacks.
+
+    C implementation located in pyhypergrep/common/shared/c/hyperscanner.c.
+
+    Fields:
+        id: The index of the pattern that matched the line.
+        line_number: The index of the line matched in the file.
+        line: Contents of the line that was matched.
+    """
+
+    _fields_ = [
+        ('id', ctypes.c_uint),
+        ('line_number', ctypes.c_ulonglong),
+        ('line', ctypes.c_char_p),
+    ]
+
+
+# C function type used by hyperscanner to send line match batches back to python.
+# Must be declared after struct class for proper pointer declaration.
 HYPERSCANNER_CALLBACK_TYPE = ctypes.CFUNCTYPE(
     None,
-    ctypes.c_ulonglong,
-    ctypes.c_uint,
-    ctypes.c_char_p,
+    ctypes.POINTER(HyperscannerResult),
+    ctypes.c_int,
     use_errno=False,
     use_last_error=False
 )
@@ -76,6 +95,7 @@ def hyperscan(
         patterns: List[str],
         callback: Callable,
         buffer_size: int = 65535,
+        buffer_count: int = 32,
         flags: List[int] = (),
 ) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
@@ -88,6 +108,11 @@ def hyperscan(
         callback: Where every regex hit (line index, pattern id, and byte string) are sent.
             Must match HYPERSCANNER_CALLBACK_TYPE.
         buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
+        buffer_count: How many line matches to buffer before calling callback.
+            Reduces overhead of C callback calls, at cost of delaying python processing.
+            Basic guidelines:
+                Multithreading + millions of matches = increase limit.
+                Multiprocessing or few matches = decrease limit or leave as is.
         flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
             Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
             Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
@@ -128,5 +153,13 @@ def hyperscan(
     hyperscanner_lib = _get_hyperscanner_lib()
 
     callback = HYPERSCANNER_CALLBACK_TYPE(callback)
-    ret_code = hyperscanner_lib.hyperscan(path.encode(), pattern_array, flags_array, len(pattern_array), callback, buffer_size)
+    ret_code = hyperscanner_lib.hyperscan(
+        path.encode(),
+        pattern_array,
+        flags_array,
+        len(pattern_array),
+        callback,
+        buffer_size,
+        buffer_count,
+    )
     return ret_code
