@@ -182,6 +182,52 @@ TEST_CASES = {
             )
         },
     },
+    'to_basic_regular_expressions': {
+        'no changes, no special characters': {
+            'args': [
+                ['test'],
+            ],
+            'expected': ['test']
+        },
+        'no changes, BRE compatible special characters': {
+            'args': [
+                ['test^$*.[]'],
+            ],
+            'expected': ['test^$*.[]']
+        },
+        'BRE and PCRE special characters': {
+            'args': [
+                ['test^$*.[]+?(){}|'],
+            ],
+            'expected': [r'test^$*.[]\+\?\(\)\{\}\|']
+        },
+        'BRE, PCRE, and escaped special characters': {
+            'args': [
+                [r'test^$*.[]+?(){}|\^\$\*\.\[\]\+\?\(\)\{\}\|'],
+            ],
+            'expected': [r'test^$*.[]\+\?\(\)\{\}\|\^\$\*\.\[\]+?(){}|']
+        },
+    },
+    'to_gnu_regular_expressions': {
+        'no changes, no escapes': {
+            'args': [
+                ['<foo>'],
+            ],
+            'expected': ['<foo>']
+        },
+        'GNU word boundaries swapped': {
+            'args': [
+                [r'<foo>\<foo\>'],
+            ],
+            'expected': [r'<foo>\bfoo\b']
+        },
+        'GNU word boundaries swapped, escaped boundaries skipped': {
+            'args': [
+                [r'<foo>\<foo\>\\<foo\\>'],
+            ],
+            'expected': [r'<foo>\bfoo\b\\<foo\\>']
+        },
+    },
 }
 
 
@@ -300,3 +346,23 @@ def test_namespace_comparator(test_case: dict) -> None:
 def test_parse_args(test_case: dict) -> None:
     """Tests for parse_args function."""
     run_basic_test_case(test_case, hyperscanner.parse_args, comparator=argparse_namespace_comparator)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['to_basic_regular_expressions'].values()),
+    ids=list(TEST_CASES['to_basic_regular_expressions'].keys()),
+)
+def test_to_basic_regular_expressions(test_case: dict) -> None:
+    """Tests for to_basic_regular_expressions function."""
+    run_basic_test_case(test_case, hyperscanner.to_basic_regular_expressions)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['to_gnu_regular_expressions'].values()),
+    ids=list(TEST_CASES['to_gnu_regular_expressions'].keys()),
+)
+def test_to_gnu_regular_expressions(test_case: dict) -> None:
+    """Tests for to_gnu_regular_expressions function."""
+    run_basic_test_case(test_case, hyperscanner.to_gnu_regular_expressions)

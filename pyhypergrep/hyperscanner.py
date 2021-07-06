@@ -256,6 +256,57 @@ def read_stdin() -> Generator[str, None, None]:
         yield line
 
 
+def to_basic_regular_expressions(patterns: List[str]) -> List[str]:
+    """Convert regexes into POSIX style Basic Regular Expressions (BRE).
+
+    Args:
+        patterns: Extended Regular Expression (ERE) or Perl Compatible Regular Expression (PCRE) patterns.
+
+    Returns:
+        ERE/PCREs with BRE non-regex special characters escaped to act as literals.
+    """
+    basic_patterns = []
+    for pattern in patterns:
+        # BREs provide compatibility back to the original Unix "grep" by:
+        #   1. Treating some regex characters compatible with ERE/PCRE as literals.
+        #   2. Turning escaped regex characters into regular ERE/PCRE compatible regex characters.
+        # This requires a 3 step swap to prevent swapping all characters in one direction:
+        #   1. Flag all the BRE characters that are not already preceded by escapes to be escaped.
+        #   2. Swap all previously escaped BRE characters with normal regex characters.
+        #   3. Swap the flagged BRE characters with escaped characters.
+        # This is the default pattern behavior of "grep". See "man grep" for more details.
+        # ERE/PCRE special regex characters: .*^$+?()[]{}|
+        # BRE regex characters treated as literals: +?(){}|
+        basic_pattern = re.sub(r'(?<!\\)([+?(){}|])', lambda match: f'HYPERSCANNERSWAPFLAG{match.group(0)}', pattern)
+        basic_pattern = re.sub(r'(\\[+?(){}|])', lambda match: match.group(0)[-1], basic_pattern)
+        basic_pattern = re.sub(r'HYPERSCANNERSWAPFLAG([+?(){}|])', lambda match: f'\\{match.group(0)[-1]}', basic_pattern)
+        basic_patterns.append(basic_pattern)
+    return basic_patterns
+
+
+def to_gnu_regular_expressions(patterns: List[str]) -> List[str]:
+    """Convert regexes into GNU style regexes.
+
+    This should not be used if the original regex is PCRE. PCRE expects patterns as is, without swaps.
+
+    Args:
+        patterns: Basic/Extended Regular Expression (BRE/ERE) patterns.
+
+    Returns:
+        BRE/EREs with GNU special patterns swapped for PCRE compatibility..
+    """
+    gnu_patterns = []
+    for pattern in patterns:
+        # GNU grep provides an extra set of characters that behave like PCRE, but with different declarations.
+        # This is the default pattern behavior of "grep". See "man grep" for more details.
+        # GNU regex characters to be swapped for ERE/PCRE patterns:
+        # \< == \b
+        # \> == \b
+        basic_pattern = re.sub(r'(?<!\\)(\\[<>])', lambda match: '\\b', pattern)
+        gnu_patterns.append(basic_pattern)
+    return gnu_patterns
+
+
 def parse_args(args: list = None) -> argparse.Namespace:
     """Parse the args for the hyperscanner command.
 
@@ -293,40 +344,67 @@ def parse_args(args: list = None) -> argparse.Namespace:
     # Other "grep" commands subprocess grep and pass through the args for maximum compatibility.
     # This command does not subprocess "grep" to maximum performance and resource usage.
     # All arguments that needs parity with "grep" must be declared here.
-    # Arguments reserved by "grep":
+
+    # Arguments reserved by "grep". Argparse groups match "grep" help output organization:
     parser.add_argument('pattern', nargs='?',
                         help='Regex pattern to use.')
     parser.add_argument('files', nargs='*',
                         help='Files to scan.')
-    parser.add_argument('-a', '--text', action='store_true',
-                        help='Process a binary file as if it were text; this is equivalent to the --binary-files=text option. '
-                             '(Dummy option for cross-compatibility with grep. Files are always processed as binary.)')
-    filename_group = parser.add_mutually_exclusive_group()
+
+    generic_args = parser.add_argument_group('Generic Program Information')
+    # Add help manually, using only --help. Grep uses -h as a standard arg.
+    generic_args.add_argument('--help', action='help', default=argparse.SUPPRESS,
+                              help='show this help message and exit')
+
+    pattern_args = parser.add_argument_group('Pattern Syntax')
+    regexp_group = pattern_args.add_mutually_exclusive_group()
+    regexp_group.set_defaults(regexp='bre')
+    regexp_group.add_argument('-E', '--extended-regexp', dest='regexp', action='store_const', const='ere',
+                              help='Interpret PATTERNS as extended regular expressions (EREs).')
+    regexp_group.add_argument('-G', '--basic-regexp', dest='regexp', action='store_const', const='bre',
+                              help='Interpret PATTERNS as basic regular expressions (See "man grep" for more details). This is the default.')
+    regexp_group.add_argument('-P', '--perl-regexp', dest='regexp', action='store_const', const='pcre',
+                              help='Interpret PATTERNS as Perl-compatible regular expressions (PCREs).')
+
+    matching_args = parser.add_argument_group('Matching Control')
+    matching_args.add_argument('-e', action='append', dest='patterns', metavar='pattern',
+                               help='Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.')
+    matching_args.add_argument('-i', '--ignore-case', action='store_true',
+                               help='Perform case insensitive matching.  By default, grep is case sensitive.')
+
+    output_args = parser.add_argument_group('General Output Control')
+    output_args.add_argument('-c', '--count', action='store_true',
+                             help='Suppress normal output; instead print a count of matching lines for each input file.')
+
+    prefix_args = parser.add_argument_group('Output Line Prefix Control')
     # Default to Nones in order to tell if user explicitly requested value, instead of default of False.
+    filename_group = prefix_args.add_mutually_exclusive_group()
     filename_group.add_argument('-H', '--with-filename', action='store_true', default=None,
                                 help='Print the file name for each match. This is the default when there is more than one file to search.')
     filename_group.add_argument('-h', '--no-filename', action='store_true', default=None,
                                 help='Suppress the prefixing of file names on output. This is the default when there is only one file to search.')
-    parser.add_argument('-e', action='append', dest='patterns', metavar='pattern',
-                        help='Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.')
-    parser.add_argument('-i', '--ignore-case', action='store_true',
-                        help='Perform case insensitive matching.  By default, grep is case sensitive.')
-    parser.add_argument('-n', '--line-number', action='store_true',
-                        help='Prefix each line of output with the 1-based line number within its input file.')
-    parser.add_argument('-c', '--count', action='store_true',
-                        help='Suppress normal output; instead print a count of matching lines for each input file.')
+    prefix_args.add_argument('-n', '--line-number', action='store_true',
+                             help='Prefix each line of output with the 1-based line number within its input file.')
+
+    selection_args = parser.add_argument_group('File and Directory Selection')
+    selection_args.add_argument('-a', '--text', action='store_true',
+                                help='Process a binary file as if it were text; this is equivalent to the --binary-files=text option. '
+                                     '(Dummy option for cross-compatibility with grep. Files are always processed as binary.)')
+
     # Arguments not reserved by "grep" (unique to this command):
-    parser.add_argument('-t', '--total', action='store_true',
-                        help='Suppress normal output; instead print a count of matching lines across all input files.')
-    parser.add_argument('--no-order', dest='ordered', action='store_false',
-                        help='Print results as files finish, instead of waiting for previous files to complete.')
-    parser.add_argument('--no-sort', dest='sort_files', action='store_false',
-                        help='Keep original file order instead of naturally sorting.')
-    parser.add_argument('--mp', action='store_false', dest='use_multithreading',
-                        help='Use multiprocessing pool instead of multithreading. May help print extremely large results faster (1M+).')
-    # Add help manually, using only --help. Grep uses -h as a standard arg.
-    parser.add_argument('--help', action='help', default=argparse.SUPPRESS,
-                        help='show this help message and exit')
+    hyper_args = parser.add_argument_group('Unique arguments to hyperscanner')
+    hyper_args.add_argument('-t', '--total', action='store_true',
+                            help='Suppress normal output; instead print a count of matching lines across all input files.')
+    hyper_args.add_argument('--no-gnu', dest='gnu_regexp', action='store_false',
+                            help='Disable conversions that modify the regex for GNU grep compatibility. Only performed with BRE and ERE patterns. Example: \\< swapped with \\b')
+    hyper_args.add_argument('--no-order', dest='ordered', action='store_false',
+                            help='Print results as files finish, instead of waiting for previous files to complete.')
+    hyper_args.add_argument('--no-sort', dest='sort_files', action='store_false',
+                            help='Keep original file order instead of naturally sorting.')
+    hyper_args.add_argument('--mp', action='store_false', dest='use_multithreading',
+                            help='Use multiprocessing pool instead of multithreading. May help print extremely large results faster (1M+).')
+
+    # Attach the parser to allow manually referencing its help output printer.
     parser.set_defaults(parser=parser)
     args = parser.parse_intermixed_args(args=args)
     return args
@@ -344,6 +422,11 @@ def main() -> None:
     if not patterns:
         args.parser.print_usage()
         raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
+    if args.regexp not in ('ere', 'pcre'):
+        patterns = to_basic_regular_expressions(patterns)
+    if args.gnu_regexp and args.regexp != 'pcre':
+        # GNU patterns are compatible with ERE, but not PCRE. PCRE expects full modern syntax.
+        patterns = to_gnu_regular_expressions(patterns)
 
     files = get_argparse_files(args) or list(read_stdin())
     if args.sort_files:
