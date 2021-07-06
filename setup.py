@@ -33,7 +33,7 @@ setuptools.setup(
     url='https://github.com/dfrtz/pyhypergrep',
     packages=setuptools.find_packages(ROOT_DIR, include=['pyhypergrep*'], exclude=['*test']),
     package_data=PACKAGE_DATA,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     entry_points={
         'console_scripts': [
             'pyhypergrep = pyhypergrep.hyperscanner:main',

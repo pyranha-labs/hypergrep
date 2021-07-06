@@ -1,7 +1,9 @@
 """Test cases for the pyhypergrep module."""
 
+import argparse
 import os
 import pytest
+import shlex
 import sys
 
 from typing import Any
@@ -21,6 +23,78 @@ def _dummy_callback(matches: list, count: int) -> None:
 
 TEST_FILE = os.path.join(os.path.dirname(__file__), 'dummyfile.txt')
 TEST_CASES = {
+    'argparse_namespace_comparator': {
+        'matched': {
+            'args': [
+                argparse.Namespace(
+                    files=['f1', 'f2', 'f3'],
+                    pattern='p1',
+                ),
+                argparse.Namespace(
+                    files=['f1', 'f2', 'f3'],
+                    pattern='p1',
+                ),
+            ],
+            'expected': None
+        },
+        'mismatched': {
+            'args': [
+                argparse.Namespace(
+                    files=['f1', 'f2', 'f3'],
+                    pattern='p1',
+                ),
+                argparse.Namespace(
+                    files=['f1', 'f2'],
+                    pattern='p2',
+                ),
+            ],
+            'raises': AssertionError
+        },
+    },
+    'get_argparse_files': {
+        'leading pattern positional and file positionals': {
+            'args': [
+                hyperscanner.parse_args(shlex.split('p1 f1 f2 f3')),
+            ],
+            'expected': ['f1', 'f2', 'f3']
+        },
+        'intermixed pattern positional, trailing file positionals, and pattern optionals': {
+            # See hyperscanner.get_argparse_files for explanation of why p1 is considered a file in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('-e p2 p1 -e p3 f1 f2')),
+            ],
+            'expected': ['p1', 'f1', 'f2']
+        },
+        'pattern positional, intermixed file positionals, and pattern optionals': {
+            # See hyperscanner.get_argparse_files for explanation of why p1 is considered a file in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('p1 f1 -e p2 f2 -e p3 f3 f4')),
+            ],
+            'expected': ['p1', 'f1', 'f2', 'f3', 'f4']
+        },
+    },
+    'get_argparse_patterns': {
+        'leading pattern positional and file positionals': {
+            'args': [
+                hyperscanner.parse_args(shlex.split('p1 f1 f2 f3')),
+            ],
+            'expected': ['p1']
+        },
+        'intermixed pattern positional, trailing file positionals, and pattern optionals': {
+            # See hyperscanner.get_argparse_patterns for explanation of why p1 is not considered a pattern in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('-e p2 p1 -e p3 f1 f2')),
+            ],
+            'expected': ['p2', 'p3']
+        },
+        'pattern positional, intermixed file positionals, and pattern optionals': {
+            # See hyperscanner.get_argparse_patterns for explanation of why p1 is not considered a pattern in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('p1 f1 -e p2 f2 -e p3 f3 f4')),
+            ],
+            'expected': ['p2', 'p3']
+        },
+    },
     'hyperscan': {
         'one pattern': {
             'args': [
@@ -53,7 +127,7 @@ TEST_CASES = {
         'one pattern, no index': {
             'args': [
                 TEST_FILE,
-                'bar',
+                ['bar'],
                 False,
                 False,
                 False,
@@ -66,7 +140,7 @@ TEST_CASES = {
         'one pattern, with index': {
             'args': [
                 TEST_FILE,
-                'bar',
+                ['bar'],
                 False,
                 True,
                 False,
@@ -77,7 +151,52 @@ TEST_CASES = {
             ]
         },
     },
+    'parse_args': {
+        'leading pattern positional and file positionals': {
+            'args': [
+                shlex.split('p1 f1 f2 f3'),
+            ],
+            'expected': argparse.Namespace(
+                files=['f1', 'f2', 'f3'],
+                pattern='p1',
+            )
+        },
+        'intermixed pattern positional, trailing file positionals, and pattern optionals': {
+            'args': [
+                shlex.split('-e p2 p1 -e p3 f1 f2'),
+            ],
+            'expected': argparse.Namespace(
+                files=['f1', 'f2'],
+                pattern='p1',
+                patterns=['p2', 'p3'],
+            )
+        },
+        'pattern positional, intermixed file positionals, and pattern optionals': {
+            'args': [
+                shlex.split('p1 f1 -e p2 f2 -e p3 f3 f4'),
+            ],
+            'expected': argparse.Namespace(
+                files=['f1', 'f2', 'f3', 'f4'],
+                pattern='p1',
+                patterns=['p2', 'p3'],
+            )
+        },
+    },
 }
+
+
+def argparse_namespace_comparator(result: argparse.Namespace, expected_result: argparse.Namespace) -> None:
+    """Helper to simplify argparse namespace testing by only comparing declared values in an expected result.
+
+    Args:
+        result: Actual result from a test containing all namespace values.
+        expected_result: User defined result containing only values to compare.
+
+    Raises:
+        AssertionError if any of the values in expected result do not match result.
+    """
+    for key, value in expected_result.__dict__.items():
+        assert getattr(result, key) == value
 
 
 def run_basic_test_case(test_case: dict, context: Callable, comparator: Callable = None) -> None:
@@ -107,6 +226,26 @@ def run_basic_test_case(test_case: dict, context: Callable, comparator: Callable
             comparator(result, expected)
         else:
             assert result == expected, message
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['get_argparse_files'].values()),
+    ids=list(TEST_CASES['get_argparse_files'].keys()),
+)
+def test_get_argparse_files(test_case: dict) -> None:
+    """Tests for get_argparse_files function."""
+    run_basic_test_case(test_case, hyperscanner.get_argparse_files)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['get_argparse_patterns'].values()),
+    ids=list(TEST_CASES['get_argparse_patterns'].keys()),
+)
+def test_get_argparse_patterns(test_case: dict) -> None:
+    """Tests for get_argparse_patterns function."""
+    run_basic_test_case(test_case, hyperscanner.get_argparse_patterns)
 
 
 @pytest.mark.parametrize(
@@ -141,3 +280,23 @@ def test_hyperscan(test_case: dict, capsys: Any) -> None:
         stdout = capture.out.splitlines()
         return stdout
     run_basic_test_case(test_case, _grep_helper)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['argparse_namespace_comparator'].values()),
+    ids=list(TEST_CASES['argparse_namespace_comparator'].keys()),
+)
+def test_namespace_comparator(test_case: dict) -> None:
+    """Tests for argparse_namespace_comparator function."""
+    run_basic_test_case(test_case, argparse_namespace_comparator)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['parse_args'].values()),
+    ids=list(TEST_CASES['parse_args'].keys()),
+)
+def test_parse_args(test_case: dict) -> None:
+    """Tests for parse_args function."""
+    run_basic_test_case(test_case, hyperscanner.parse_args, comparator=argparse_namespace_comparator)

@@ -29,9 +29,58 @@ def _grep_with_index(index: int, args: Iterable) -> Tuple[int, Any]:
     return index, result
 
 
+def get_argparse_files(args: argparse.Namespace) -> List[str]:
+    """Pull all files requested by the user from "grep" argparse arguments.
+
+    Args:
+        args: Processed argparse namespace.
+
+    Returns:
+        Simplified list of all valid files from user arguments.
+    """
+    # GNU grep allows specifying a pattern as a positional, or optional multiple times.
+    # NOTE: If at least 1 optional is used for a pattern (-e), then use the pattern positional as a file.
+    all_files = []
+    if args.patterns and args.pattern:
+        all_files.append(args.pattern)
+    if args.files:
+        all_files.extend(args.files)
+    return all_files
+
+
+def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
+    """Pull all patterns requested by the user from "grep" argparse arguments.
+
+    Args:
+        args: Processed argparse namespace.
+
+    Returns:
+        Simplified list of all valid regex patterns from user arguments.
+
+    Raises:
+        ValueError if any of the regexes are invalid.
+    """
+    # GNU grep allows specifying a pattern as a positional, or optional multiple times.
+    # NOTE: If at least 1 optional is used for a pattern (-e), then use the pattern positional as a file.
+    all_patterns = []
+    if args.patterns:
+        all_patterns.extend(args.patterns)
+    elif args.pattern:
+        all_patterns.append(args.pattern)
+
+    # Perform a basic regex compilation test before Hyperscan is started.
+    # This does not guarantee 100% compatibility, but reduces the need for Hyperscan to validate common errors.
+    for pattern in all_patterns:
+        try:
+            re.compile(pattern)
+        except Exception as error:
+            raise ValueError(f'hyperscanner: invalid regex: {error}')
+    return all_patterns
+
+
 def grep(
         file: str,
-        pattern: str,
+        patterns: List[str],
         ignore_case: bool,
         with_index: bool,
         count_only: bool,
@@ -40,7 +89,7 @@ def grep(
 
     Args:
         file: Path to a file on the local filesystem.
-        pattern: Regex pattern compatible with Intel Hyperscan.
+        patterns: Regex patterns compatible with Intel Hyperscan.
         ignore_case: Perform case-insensitive matching.
         with_index: Whether to return the line indexes with the lines.
         count_only: Whether to count the matches, instead of decode the byte lines and store them.
@@ -78,13 +127,13 @@ def grep(
     flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
     if ignore_case:
         flags |= hyper_utils.HS_FLAG_CASELESS
-    hyper_utils.hyperscan(file, [pattern], _c_callback, flags=[flags])
+    hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags])
     return lines
 
 
 def parallel_grep(
         files: list,
-        pattern: str,
+        patterns: List[str],
         ignore_case: bool = False,
         ordered_results: bool = True,
         count_results: bool = False,
@@ -97,7 +146,7 @@ def parallel_grep(
 
     Args:
         files: All files to scan for pattern.
-        pattern: Regex pattern compatible with Intel Hyperscan.
+        patterns: Regex patterns compatible with Intel Hyperscan.
         ignore_case: Perform case-insensitive matching.
         ordered_results: Wait for previous files to complete before printing results.
         count_results: Print a count of matching lines for each input file, instead of printing matches.
@@ -151,7 +200,7 @@ def parallel_grep(
     with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
         jobs = []
         for index, file in enumerate(files):
-            args = (file, pattern, ignore_case, with_line_number, count_results or total_results)
+            args = (file, patterns, ignore_case, with_line_number, count_results or total_results)
             jobs.append(pool.apply_async(_grep_with_index, (index, args), callback=_on_grep_finish))
         for job in jobs:
             job.get()
@@ -207,7 +256,7 @@ def read_stdin() -> Generator[str, None, None]:
         yield line
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(args: list = None) -> argparse.Namespace:
     """Parse the args for the hyperscanner command.
 
     Returns:
@@ -245,7 +294,7 @@ def parse_args() -> argparse.Namespace:
     # This command does not subprocess "grep" to maximum performance and resource usage.
     # All arguments that needs parity with "grep" must be declared here.
     # Arguments reserved by "grep":
-    parser.add_argument('pattern', nargs=1,
+    parser.add_argument('pattern', nargs='?',
                         help='Regex pattern to use.')
     parser.add_argument('files', nargs='*',
                         help='Files to scan.')
@@ -258,6 +307,8 @@ def parse_args() -> argparse.Namespace:
                                 help='Print the file name for each match. This is the default when there is more than one file to search.')
     filename_group.add_argument('-h', '--no-filename', action='store_true', default=None,
                                 help='Suppress the prefixing of file names on output. This is the default when there is only one file to search.')
+    parser.add_argument('-e', action='append', dest='patterns', metavar='pattern',
+                        help='Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.')
     parser.add_argument('-i', '--ignore-case', action='store_true',
                         help='Perform case insensitive matching.  By default, grep is case sensitive.')
     parser.add_argument('-n', '--line-number', action='store_true',
@@ -277,19 +328,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--help', action='help', default=argparse.SUPPRESS,
                         help='show this help message and exit')
     parser.set_defaults(parser=parser)
-    args = parser.parse_args()
+    args = parser.parse_intermixed_args(args=args)
     return args
 
 
 def main() -> None:
     """Primary logic for hyperscanner command."""
     args = parse_args()
-    files = args.files or list(read_stdin())
+    try:
+        patterns = get_argparse_patterns(args)
+    except ValueError as error:
+        print(error)
+        raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
+
+    if not patterns:
+        args.parser.print_usage()
+        raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
+
+    files = get_argparse_files(args) or list(read_stdin())
     if args.sort_files:
         files = sorted(files)
     if not files:
-        print(args.parser.usage)
-        raise SystemExit()
+        args.parser.print_usage()
+        raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
 
     # Default to show filename, and then check for user manual overrides, or single file override.
     with_filename = True
@@ -300,18 +361,9 @@ def main() -> None:
     elif len(files) == 1:
         with_filename = False
 
-    # Perform a basic regex compilation test before Hyperscan is started.
-    # This does not guarantee 100% compatibility, but reduces the need for Hyperscan to validate common errors.
-    pattern = args.pattern[0]
-    try:
-        re.compile(pattern)
-    except Exception as error:
-        print(f'hyperscanner: invalid regex: {error}')
-        raise SystemExit(1)
-
     parallel_grep(
         files=files,
-        pattern=pattern,
+        patterns=patterns,
         ignore_case=args.ignore_case,
         ordered_results=args.ordered,
         count_results=args.count,
