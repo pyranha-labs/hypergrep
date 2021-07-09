@@ -21,6 +21,8 @@ def _dummy_callback(matches: list, count: int) -> None:
         print(f'{match.line_number}:{line.rstrip()}')
 
 
+DUMMY_FILE_1 = os.path.join(os.path.dirname(__file__), 'greptest1.txt')
+DUMMY_FILE_2 = os.path.join(os.path.dirname(__file__), 'greptest2.txt')
 TEST_FILE = os.path.join(os.path.dirname(__file__), 'dummyfile.txt')
 TEST_CASES = {
     'argparse_namespace_comparator': {
@@ -148,6 +150,268 @@ TEST_CASES = {
             'expected': [
                 (2, 'foobar\n'),
                 (3, 'barfoo\n'),
+            ]
+        },
+    },
+    'parallel_grep': {
+        'single file, with file name': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                'greptest1.txt:foobar',
+            ]
+        },
+        'single file, with file name and line index': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': True,
+            },
+            'expected': [
+                'greptest1.txt:3:foobar',
+            ]
+        },
+        'single file, with file name and count': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': True,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                'greptest1.txt:16',
+            ]
+        },
+        'single file, with file name and total': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': True,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                # It is expected for total to not show a file name, it is a total. This ensures expected behavior.
+                '16',
+            ]
+        },
+        'single file, no file name, with line index': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': False,
+                'with_line_number': True,
+            },
+            'expected': [
+                '3:foobar',
+            ]
+        },
+        'single file, no file name, with count': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': True,
+                'total_results': False,
+                'with_file_name': False,
+                'with_line_number': False,
+            },
+            'expected': [
+                '16',
+            ]
+        },
+        'single file, no file name, with total': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': True,
+                'with_file_name': False,
+                'with_line_number': False,
+            },
+            'expected': [
+                '16',
+            ]
+        },
+        'multi file, with file name': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                'greptest1.txt:foobar',
+                'greptest2.txt:foobar',
+            ]
+        },
+        'multi file, with file name and line index': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': True,
+            },
+            'expected': [
+                'greptest1.txt:3:foobar',
+                'greptest2.txt:3:foobar',
+            ]
+        },
+        'multi file, with file name and count': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': True,
+                'total_results': False,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                'greptest1.txt:16',
+                'greptest2.txt:16',
+            ]
+        },
+        'multi file, with file name and total': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': True,
+                'with_file_name': True,
+                'with_line_number': False,
+            },
+            'expected': [
+                # It is expected for total to not show a file name, it is a total. This ensures expected behavior.
+                '32'
+            ]
+        },
+        'multi file, no file name, with line index': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foobar'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': False,
+                'with_file_name': False,
+                'with_line_number': True,
+            },
+            'expected': [
+                '3:foobar',
+                '3:foobar',
+            ]
+        },
+        'multi file, no file name, with count': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': True,
+                'total_results': False,
+                'with_file_name': False,
+                'with_line_number': False,
+            },
+            'expected': [
+                '16',
+                '16',
+            ]
+        },
+        'multi file, no file name, with total': {
+            'args': [
+                [DUMMY_FILE_1, DUMMY_FILE_2],
+                ['foo'],
+            ],
+            'kwargs': {
+                'count_results': False,
+                'total_results': True,
+                'with_file_name': False,
+                'with_line_number': False,
+            },
+            'expected': [
+                '32',
+            ]
+        },
+        'case sensitive': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['fOoBaR'],
+            ],
+            'kwargs': {
+                'ignore_case': False
+            },
+            'expected': [
+                # No match expected.
+            ]
+        },
+        'case insensitive': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['fOoBaR'],
+            ],
+            'kwargs': {
+                'ignore_case': True
+            },
+            'expected': [
+                'foobar'
+            ]
+        },
+        'special character exact': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['barfoo\\+'],
+            ],
+            'expected': [
+                'barfoo+',
+            ]
+        },
+        'special character regex': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['barfoo+'],
+            ],
+            'expected': [
+                'barfoo',
+                'barfoo+',
             ]
         },
     },
@@ -336,6 +600,29 @@ def test_hyperscan(test_case: dict, capsys: Any) -> None:
 def test_namespace_comparator(test_case: dict) -> None:
     """Tests for argparse_namespace_comparator function."""
     run_basic_test_case(test_case, argparse_namespace_comparator)
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['parallel_grep'].values()),
+    ids=list(TEST_CASES['parallel_grep'].keys()),
+)
+@pytest.mark.skipif(
+    sys.platform != 'linux',
+    reason='Hyperscan libraries only support Linux',
+)
+def test_parallel_grep(test_case: dict, capsys: Any) -> None:
+    """Tests for parallel_grep function."""
+    def parallel_grep_helper(*args, **kwargs) -> list:
+        """Helper to run parallel_grep and capture output for comparisons."""
+        hyperscanner.parallel_grep(*args, **kwargs)
+        capture = capsys.readouterr()
+        stdout = capture.out.splitlines()
+        root = os.path.dirname(__file__)
+        # Strip off the leading file name in output to keep the tests portable across systems.
+        cleaned = [line.replace(f'{root}/', '') for line in stdout]
+        return cleaned
+    run_basic_test_case(test_case, parallel_grep_helper)
 
 
 @pytest.mark.parametrize(
