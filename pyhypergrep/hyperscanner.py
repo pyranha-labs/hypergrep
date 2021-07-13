@@ -281,6 +281,11 @@ def to_basic_regular_expressions(patterns: List[str]) -> List[str]:
         basic_pattern = re.sub(r'(\\[+?(){}|])', lambda match: match.group(0)[-1], basic_pattern)
         basic_pattern = re.sub(r'HYPERSCANNERSWAPFLAG([+?(){}|])', lambda match: f'\\{match.group(0)[-1]}', basic_pattern)
         basic_patterns.append(basic_pattern)
+        # Perform another validation pass after a downgrade of the pattern to BRE to ensure it is still compatible.
+        try:
+            re.compile(basic_pattern)
+        except Exception as error:
+            raise ValueError(f'hyperscanner: invalid regex: {error}')
     return basic_patterns
 
 
@@ -423,7 +428,11 @@ def main() -> None:
         args.parser.print_usage()
         raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
     if args.regexp not in ('ere', 'pcre'):
-        patterns = to_basic_regular_expressions(patterns)
+        try:
+            patterns = to_basic_regular_expressions(patterns)
+        except ValueError as error:
+            print(error)
+            raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
     if args.gnu_regexp and args.regexp != 'pcre':
         # GNU patterns are compatible with ERE, but not PCRE. PCRE expects full modern syntax.
         patterns = to_gnu_regular_expressions(patterns)

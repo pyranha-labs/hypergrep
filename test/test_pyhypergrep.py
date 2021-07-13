@@ -455,21 +455,27 @@ TEST_CASES = {
         },
         'no changes, BRE compatible special characters': {
             'args': [
-                ['test^$*.[]'],
+                ['^test.*[test]$'],
             ],
-            'expected': ['test^$*.[]']
+            'expected': ['^test.*[test]$']
         },
         'BRE and PCRE special characters': {
             'args': [
-                ['test^$*.[]+?(){}|'],
+                ['^test.*[test]+?(){}|$'],
             ],
-            'expected': [r'test^$*.[]\+\?\(\)\{\}\|']
+            'expected': [r'^test.*[test]\+\?\(\)\{\}\|$']
         },
         'BRE, PCRE, and escaped special characters': {
             'args': [
-                [r'test^$*.[]+?(){}|\^\$\*\.\[\]\+\?\(\)\{\}\|'],
+                [r'^test.*[test]+?(){}|\^\$\*\.\[\]\+\?\(\)\{\}\|$'],
             ],
-            'expected': [r'test^$*.[]\+\?\(\)\{\}\|\^\$\*\.\[\]+?(){}|']
+            'expected': [r'^test.*[test]\+\?\(\)\{\}\|\^\$\*\.\[\]+?(){}|$']
+        },
+        'Valid as PCRE, but not valid as BRE': {
+            'args': [
+                [r'data \((?P<v0>.*?) (?P<v1>.*?)'],
+            ],
+            'raises': ValueError
         },
     },
     'to_gnu_regular_expressions': {
