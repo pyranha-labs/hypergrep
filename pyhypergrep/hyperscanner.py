@@ -467,4 +467,7 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        raise SystemExit(130)  # Exit with 130 for "script exited with ctrl+c".
