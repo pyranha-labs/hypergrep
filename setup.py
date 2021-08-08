@@ -7,7 +7,11 @@ ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Additional configuration and data files installed with the package
 PACKAGE_DATA = {
-    'pyhypergrep.common.shared': ['libhs.so.5', 'libhyperscanner.so'],
+    'pyhypergrep.common.shared': [
+        'libhs.so.5.4.0',
+        'libhyperscanner.so',
+        'libzstd.so.1.5.0',
+    ],
 }
 
 

@@ -10,8 +10,12 @@ set -e
 # Turn on command echoing to show all commands as they run.
 set -x
 
+# Set the versions to build so they are consistent throughout the script when updates are performed.
+ZSTD_BUILD_VERSION=1.5.0
+HYPERSCAN_BUILD_VERSION=5.4.0
+
 # Update the base dependencies.
-apt-get update && apt-get install -y build-essential cmake gcc pkg-config python ragel software-properties-common zlib1g-dev
+apt-get update && apt-get install -y build-essential cmake gcc pkg-config python liblzma-dev liblz4-dev ragel software-properties-common zlib1g-dev
 
 # Install git from latest PPA, default on U14.04 (Trusty) is too old for multi-threaded submodule clones.
 add-apt-repository -y ppa:git-core/ppa
@@ -23,9 +27,9 @@ script_dir="$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)"
 # Create a new temporary location to allow for isolated compiling.
 build_dir=$(mktemp -d -t hsbuild-XXXXXXXX)
 cd "${build_dir}"
-git clone --depth 1 --branch v1.4.9 https://github.com/facebook/zstd.git
+git clone --depth 1 --branch "v${ZSTD_BUILD_VERSION}" https://github.com/facebook/zstd.git
 # Boost and Hyperscan5 must be pulled from source to support as low as U14.04 (Trusty). Do not use OS packages.
-git clone --depth 1 --branch v5.4.0 https://github.com/intel/hyperscan
+git clone --depth 1 --branch "v${HYPERSCAN_BUILD_VERSION}" https://github.com/intel/hyperscan
 # Use 32 jobs to speed up Boost clone, it has 100+ submodules.
 git clone --depth 1 --branch boost-1.75.0 --recursive --jobs 32 https://github.com/boostorg/boost
 
@@ -43,7 +47,7 @@ make install
 
 # Compile ZSTD shared library and install, so that hyperscanner can reference in build.
 cd "${build_dir}"/zstd
-make c99build
+make -j 4
 make install
 
 # Compile custom hyperscanner and ZSTD wrapper to position independent code, and then into a shared library.
@@ -57,5 +61,5 @@ gcc -I "${build_dir}"/zstd/lib -I "${build_dir}"/zstd/zlibWrapper/ -std=c99 -c -
 gcc -shared -o "${script_dir}"/pyhypergrep/common/shared/libhyperscanner.so hyperscanner.o gz*.o zstd*.o $(pkg-config --cflags --libs libhs libzstd zlib)
 
 # Copy the external shared libraries that were built back to the source for bundling with the hyperscanner as fallbacks.
-cp -v "${build_dir}"/hyperscan/lib/libhs.so.5.4.0 "${script_dir}"/pyhypergrep/common/shared/libhs.so.5.4.0
-cp -v "${build_dir}"/zstd/lib/libzstd.so.1.4.9 "${script_dir}"/pyhypergrep/common/shared/libzstd.so.1.4.9
+cp -v "${build_dir}/hyperscan/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}" "${script_dir}/pyhypergrep/common/shared/libhs.so.${HYPERSCAN_BUILD_VERSION}"
+cp -v "${build_dir}/zstd/lib/libzstd.so.${ZSTD_BUILD_VERSION}" "${script_dir}/pyhypergrep/common/shared/libzstd.so.${ZSTD_BUILD_VERSION}"
