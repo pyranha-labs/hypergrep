@@ -39,9 +39,9 @@ def get_argparse_files(args: argparse.Namespace) -> List[str]:
         Simplified list of all valid files from user arguments.
     """
     # GNU grep allows specifying a pattern as a positional, or optional multiple times.
-    # NOTE: If at least 1 optional is used for a pattern (-e), then use the pattern positional as a file.
+    # NOTE: If at least 1 optional is used for a pattern (-e-f), then use the pattern positional as a file.
     all_files = []
-    if args.patterns and args.pattern:
+    if (args.pattern_files or args.patterns) and args.pattern:
         all_files.append(args.pattern)
     if args.files:
         all_files.extend(args.files)
@@ -61,12 +61,16 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
         ValueError if any of the regexes are invalid.
     """
     # GNU grep allows specifying a pattern as a positional, or optional multiple times.
-    # NOTE: If at least 1 optional is used for a pattern (-e), then use the pattern positional as a file.
+    # NOTE: If at least 1 optional is used for a pattern (-e/-f), then use the pattern positional as a file.
     all_patterns = []
     if args.patterns:
         all_patterns.extend(args.patterns)
-    elif args.pattern:
+    elif not args.pattern_files and args.pattern:
         all_patterns.append(args.pattern)
+    if args.pattern_files:
+        for file_name in args.pattern_files:
+            with open(file_name, 'rt') as pattern_file:
+                all_patterns.extend(pattern.rstrip('\n') for pattern in pattern_file.readlines())
 
     # Perform a basic regex compilation test before Hyperscan is started.
     # This does not guarantee 100% compatibility, but reduces the need for Hyperscan to validate common errors.
@@ -372,8 +376,10 @@ def parse_args(args: list = None) -> argparse.Namespace:
                               help='Interpret PATTERNS as Perl-compatible regular expressions (PCREs).')
 
     matching_args = parser.add_argument_group('Matching Control')
-    matching_args.add_argument('-e', action='append', dest='patterns', metavar='pattern',
+    matching_args.add_argument('-e', '--regexp', action='append', dest='patterns', metavar='pattern',
                                help='Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.')
+    matching_args.add_argument('-f', '--file', action='append', dest='pattern_files', metavar='file',
+                               help='Obtain patterns from FILE, one per line. If this option is used multiple times or is combined with the -e (--regexp) option, search for all patterns given. The empty file contains zero patterns, and therefore matches nothing.')
     matching_args.add_argument('-i', '--ignore-case', action='store_true',
                                help='Perform case insensitive matching.  By default, grep is case sensitive.')
 

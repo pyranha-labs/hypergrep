@@ -1,6 +1,8 @@
 """Test cases for the pyhypergrep module."""
 
+import builtins
 import argparse
+import io
 import os
 import pytest
 import shlex
@@ -23,6 +25,9 @@ def _dummy_callback(matches: list, count: int) -> None:
 
 DUMMY_FILE_1 = os.path.join(os.path.dirname(__file__), 'greptest1.txt')
 DUMMY_FILE_2 = os.path.join(os.path.dirname(__file__), 'greptest2.txt')
+FAKE_FILES = {
+    'regex.txt': 'filepattern1\nfilepattern2',
+}
 TEST_FILE = os.path.join(os.path.dirname(__file__), 'dummyfile.txt')
 TEST_CASES = {
     'argparse_namespace_comparator': {
@@ -56,45 +61,87 @@ TEST_CASES = {
     'get_argparse_files': {
         'leading pattern positional and file positionals': {
             'args': [
-                hyperscanner.parse_args(shlex.split('p1 f1 f2 f3')),
+                hyperscanner.parse_args(shlex.split('pattern1 file1 file2 file3')),
             ],
-            'expected': ['f1', 'f2', 'f3']
+            'expected': ['file1', 'file2', 'file3']
+        },
+        'Leading pattern positional and pattern optional': {
+            # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -e pattern2 file1')),
+            ],
+            'expected': ['pattern1', 'file1']
+        },
+        'Leading pattern positional and pattern file optional': {
+            # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -f regex.txt file1')),
+            ],
+            'expected': ['pattern1', 'file1']
+        },
+        'Leading pattern positional, pattern optional, and pattern file optional': {
+            # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -e pattern2 -f regex.txt file1')),
+            ],
+            'expected': ['pattern1', 'file1']
         },
         'intermixed pattern positional, trailing file positionals, and pattern optionals': {
-            # See hyperscanner.get_argparse_files for explanation of why p1 is considered a file in this scenario.
+            # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             'args': [
-                hyperscanner.parse_args(shlex.split('-e p2 p1 -e p3 f1 f2')),
+                hyperscanner.parse_args(shlex.split('-e pattern2 pattern1 -e pattern3 file1 file2')),
             ],
-            'expected': ['p1', 'f1', 'f2']
+            'expected': ['pattern1', 'file1', 'file2']
         },
         'pattern positional, intermixed file positionals, and pattern optionals': {
-            # See hyperscanner.get_argparse_files for explanation of why p1 is considered a file in this scenario.
+            # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             'args': [
-                hyperscanner.parse_args(shlex.split('p1 f1 -e p2 f2 -e p3 f3 f4')),
+                hyperscanner.parse_args(shlex.split('pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4')),
             ],
-            'expected': ['p1', 'f1', 'f2', 'f3', 'f4']
+            'expected': ['pattern1', 'file1', 'file2', 'file3', 'f4']
         },
     },
     'get_argparse_patterns': {
         'leading pattern positional and file positionals': {
             'args': [
-                hyperscanner.parse_args(shlex.split('p1 f1 f2 f3')),
+                hyperscanner.parse_args(shlex.split('pattern1 file1 file2 file3')),
             ],
-            'expected': ['p1']
+            'expected': ['pattern1']
+        },
+        'Leading pattern positional and pattern optional': {
+            # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -e pattern2 file1')),
+            ],
+            'expected': ['pattern2']
+        },
+        'Leading pattern positional and pattern file optional': {
+            # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -f regex.txt file1')),
+            ],
+            'expected': ['filepattern1', 'filepattern2']
+        },
+        'Leading pattern positional, pattern optional, and pattern file optional': {
+            # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
+            'args': [
+                hyperscanner.parse_args(shlex.split('pattern1 -e pattern2 -f regex.txt file1')),
+            ],
+            'expected': ['pattern2', 'filepattern1', 'filepattern2']
         },
         'intermixed pattern positional, trailing file positionals, and pattern optionals': {
-            # See hyperscanner.get_argparse_patterns for explanation of why p1 is not considered a pattern in this scenario.
+            # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             'args': [
-                hyperscanner.parse_args(shlex.split('-e p2 p1 -e p3 f1 f2')),
+                hyperscanner.parse_args(shlex.split('-e pattern2 pattern1 -e pattern3 file1 file2')),
             ],
-            'expected': ['p2', 'p3']
+            'expected': ['pattern2', 'pattern3']
         },
         'pattern positional, intermixed file positionals, and pattern optionals': {
-            # See hyperscanner.get_argparse_patterns for explanation of why p1 is not considered a pattern in this scenario.
+            # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             'args': [
-                hyperscanner.parse_args(shlex.split('p1 f1 -e p2 f2 -e p3 f3 f4')),
+                hyperscanner.parse_args(shlex.split('pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4')),
             ],
-            'expected': ['p2', 'p3']
+            'expected': ['pattern2', 'pattern3']
         },
     },
     'hyperscan': {
@@ -499,6 +546,13 @@ TEST_CASES = {
         },
     },
 }
+
+@pytest.fixture(autouse=True)
+def no_file_load(monkeypatch: Any) -> None:
+    """Prevent tests from loading external files, and instead mock the lines."""
+    def mock_opener(file: str, *args, **kwargs) -> io.StringIO:
+        return io.StringIO(FAKE_FILES.get(file, ''))
+    monkeypatch.setattr(builtins, 'open', mock_opener)
 
 
 def argparse_namespace_comparator(result: argparse.Namespace, expected_result: argparse.Namespace) -> None:
