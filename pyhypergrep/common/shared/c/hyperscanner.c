@@ -6,10 +6,10 @@
  *
  * Build instructions:
  *     Standalone:
- *     gcc -o hyperscanner hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
+ *     gcc -std=c99 -o hyperscanner hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
  *
- *     Shared library:
- *     gcc -c -Wall -Werror -fpic hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
+ *     Shared library (See build.sh for full process including zstd and hyperscan):
+ *     gcc -std=c99 -c -Wall -Werror -fpic hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
  *     gcc -shared -o libhyperscanner.so hyperscanner.o $(pkg-config --cflags --libs libhs libzstd zlib)
  *
  * Usage:
@@ -182,6 +182,17 @@ int hyperscan_gz(char* file_name, hyperscanner_state_t* state, hs_database_t* db
             break;
         }
 
+        // NOTE: Strip off leading null (0) characters or else the string will look like it is empty.
+        // A line may start with any number of leading nulls. Look for the first non-null and update the start.
+        if (buf[0] == 0) {
+            for (int line_start = 1; line_start < buffer_size; line_start++) {
+                if (buf[line_start] != 0) {
+                    state->line = buf + line_start;
+                    break;
+                }
+            }
+        }
+
         // Hyperscan the buffer up to the end of the current line. ZLIB will read up to a newline or max buffer length.
         if (hs_scan(db, state->line, strlen(state->line), 0, scratch, hs_callback, state) != HS_SUCCESS) {
             fprintf(stderr, "ERROR: Unable to scan buffer. Exiting.\n");
@@ -289,21 +300,21 @@ cleanup:
  */
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input file> <patterns...>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <pattern> <input file(s)...>\n", argv[0]);
         return -1;
     }
 
-    char* input_file = argv[1];
-    int elements = argc - 2;
-    const char* patterns[elements];
-    unsigned int pattern_flags[elements];
+    int ret = 0;
     for (int i = 2; i < argc; i++) {
-        patterns[i - 2] = argv[i];
+        char* input_file = argv[i];
+        const char* patterns[1];
+        unsigned int pattern_flags[1];
+        patterns[0] = argv[1];
         // HS_FLAG_DOTALL for performance.
         // HS_FLAG_MULTILINE to match ^ and $ against newlines.
         // HS_FLAG_SINGLEMATCH to stop after first callback for a pattern.
         pattern_flags[i - 2] = HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH;
+        ret = hyperscan(input_file, patterns, pattern_flags, 1, event_handler, 65535, 256);
     }
-
-    return hyperscan(input_file, patterns, pattern_flags, elements, event_handler, 65535, 256);
+    return ret;
 }

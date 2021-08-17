@@ -5,6 +5,7 @@ import os
 
 from typing import Callable
 from typing import List
+from typing import Tuple
 
 _INTEL_HYPERSCAN_LIB = None
 _HYPERSCANNER_LIB = None
@@ -163,3 +164,33 @@ def hyperscan(
         buffer_count,
     )
     return ret_code
+
+
+def hypergrep(
+        file: str,
+        patterns: List[str],
+) -> Tuple[int, List[str]]:
+    """Basic reusable grep like function using Intel Hyperscan.
+
+    Contrary to the "grep" in the name, it returns the lines instead of printing them. Useful for testing
+    basic functionality on a system, or simple use cases.
+
+    Args:
+        file: Path to a file on the local filesystem.
+        patterns: Regex patterns compatible with Intel Hyperscan.
+
+    Returns:
+        Hyperscan return code, and matching lines.
+    """
+    lines = []
+
+    def _c_callback(matches: List[HyperscannerResult], count: int) -> None:
+        """Called by the C library everytime it finds a matching line."""
+        nonlocal lines
+        for index in range(count):
+            match = matches[index]
+            line = match.line.decode(errors='ignore')
+            lines.append(line)
+
+    return_code = hyperscan(file, patterns, _c_callback)
+    return return_code, lines
