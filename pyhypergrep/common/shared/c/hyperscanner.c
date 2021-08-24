@@ -155,6 +155,28 @@ cleanup:
 }
 
 /*
+ * Helper to test regex pattern compilation.
+ *
+ * patterns: Regular expressions to be scanned against every line.
+ * pattern_flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+ *     Flags in hyperscan use a bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH == 10
+ * elements: Size the pattern array.
+ */
+int check_patterns(
+    const char* const* patterns,
+    const unsigned int* pattern_flags,
+    const unsigned int elements
+) {
+    int ret = 0;
+    hs_database_t* db = NULL;
+    if (init_hs_db(&db, patterns, pattern_flags, elements) != 0) {
+        ret = HYPERSCANNER_DB;
+    }
+    hs_free_database(db);
+    return ret;
+}
+
+/*
  * Scan a GZIP file using Intel Hyperscan.
  *
  * file_name: Location of a local file that can be read line by line.

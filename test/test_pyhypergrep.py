@@ -58,6 +58,21 @@ TEST_CASES = {
             'raises': AssertionError
         },
     },
+    'check_hyperscan_compatibility': {
+        'PCRE and Hyperscan compatible': {
+            'args': [
+                ['foobar']
+            ],
+            'expected': 0,
+        },
+        'PCRE compatible but Hyperscan incompatible': {
+            # Negative lookbehind example taken from: unit/hyperscan/bad_patterns.cpp
+            'args': [
+                ['(?<!foo)bar']
+            ],
+            'expected': 4,
+        },
+    },
     'get_argparse_files': {
         'leading pattern positional and file positionals': {
             'args': [
@@ -547,6 +562,7 @@ TEST_CASES = {
     },
 }
 
+
 @pytest.fixture(autouse=True)
 def no_file_load(monkeypatch: Any) -> None:
     """Prevent tests from loading external files, and instead mock the lines."""
@@ -596,6 +612,16 @@ def run_basic_test_case(test_case: dict, context: Callable, comparator: Callable
             comparator(result, expected)
         else:
             assert result == expected, message
+
+
+@pytest.mark.parametrize(
+    'test_case',
+    list(TEST_CASES['check_hyperscan_compatibility'].values()),
+    ids=list(TEST_CASES['check_hyperscan_compatibility'].keys()),
+)
+def test_check_hyperscan_compatibility(test_case: dict) -> None:
+    """Unit tests for verifying Hyperscan pattern compatibility."""
+    run_basic_test_case(test_case, hyper_utils.check_hyperscan_compatibility)
 
 
 @pytest.mark.parametrize(

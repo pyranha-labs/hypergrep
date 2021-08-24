@@ -79,6 +79,10 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
             re.compile(pattern)
         except Exception as error:
             raise ValueError(f'hyperscanner: invalid regex: {error}')
+    # Perform final validation using Hyperscan. Some regex constructs are PCRE compatible, but not Hyperscan compatible.
+    # Unfortunately Hyperscan does not return the exact reason, just a generic non-zero compilation failure return code.
+    if hyper_utils.check_hyperscan_compatibility(all_patterns):
+        raise ValueError('hyperscanner: incompatible regex: for more information visit https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs')
     return all_patterns
 
 

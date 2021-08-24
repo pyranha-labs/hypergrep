@@ -67,6 +67,10 @@ def _get_hyperscanner_lib() -> ctypes.cdll:
 
     This behaves similar to a module property in that it will only load if not previously loaded.
     """
+    # Cache ZSTD/Hyperscan libraries first to provide hyperscanner lib fallback to static builds.
+    # These will only be used if the OS does not have the libraries installed already.
+    _get_zstd_lib()
+    _get_hyperscan_lib()
     global _HYPERSCANNER_LIB
     if _HYPERSCANNER_LIB is None:
         # Load and cache the hyperscanner library to prevent repeat loads within the process.
@@ -89,6 +93,33 @@ def _get_zstd_lib() -> ctypes.cdll:
         lib_path = os.path.join(parent, 'shared', 'libzstd.so.1.5.0')
         _ZSTD_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _ZSTD_LIB
+
+
+def check_hyperscan_compatibility(
+        patterns: list,
+        flags: List[int] = (),
+) -> int:
+    """Helper to test regex pattern compilation in Intel Hyperscan without scanning a file.
+
+    Examples of bad patterns tested by Hyperscan can be found in their code at: unit/hyperscan/bad_patterns.cpp
+
+    Args:
+        patterns: Regex patterns in text format used to match lines.
+        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
+            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+
+    Returns:
+        ret_code: The response code received from the C backend if there was a failure, 0 otherwise.
+    """
+    pattern_array, flags_array = prepare_hyperscan_patterns(patterns, flags=flags)
+    hyperscanner_lib = _get_hyperscanner_lib()
+    ret_code = hyperscanner_lib.check_patterns(
+        pattern_array,
+        flags_array,
+        len(pattern_array),
+    )
+    return ret_code
 
 
 def hyperscan(
@@ -121,6 +152,38 @@ def hyperscan(
     Returns:
         Response code received from the C backend if there was a failure, 0 otherwise.
     """
+    pattern_array, flags_array = prepare_hyperscan_patterns(patterns, flags=flags)
+
+    # Wrap the callback in the ctype to allow passing to C functions.
+    callback = HYPERSCANNER_CALLBACK_TYPE(callback)
+    hyperscanner_lib = _get_hyperscanner_lib()
+    ret_code = hyperscanner_lib.hyperscan(
+        path.encode(),
+        pattern_array,
+        flags_array,
+        len(pattern_array),
+        callback,
+        buffer_size,
+        buffer_count,
+    )
+    return ret_code
+
+
+def prepare_hyperscan_patterns(
+        patterns: List[str],
+        flags: List[int] = (),
+) -> Tuple[ctypes.Array, ctypes.Array]:
+    """Prepare python regexes and flags for use with Intel Hyperscan.
+
+    Args:
+        patterns: Regex patterns in text format used to match lines.
+        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
+            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+
+    Returns:
+        C array of strings, and C array of ints, compatible as C lib function args.
+    """
     if not flags:
         # Set the default flags for most common usage if none were provided.
         # Hyperscan flags: https://intel.github.io/hyperscan/dev-reference/api_files.html
@@ -145,25 +208,7 @@ def hyperscan(
     pattern_array[:] = encoded_patterns
     flags_array = (ctypes.c_uint * (len(flags)))()
     flags_array[:] = [ctypes.c_uint(flag) for flag in flags]
-
-    # Cache ZSTD/Hyperscan libraries first to provide hyperscanner lib fallback to static builds.
-    # These will only be used if the OS does not have the libraries installed already.
-    _get_zstd_lib()
-    _get_hyperscan_lib()
-    # Load and keep reference to the hyperscanner library to allow calling the functions.
-    hyperscanner_lib = _get_hyperscanner_lib()
-
-    callback = HYPERSCANNER_CALLBACK_TYPE(callback)
-    ret_code = hyperscanner_lib.hyperscan(
-        path.encode(),
-        pattern_array,
-        flags_array,
-        len(pattern_array),
-        callback,
-        buffer_size,
-        buffer_count,
-    )
-    return ret_code
+    return pattern_array, flags_array
 
 
 def hypergrep(
