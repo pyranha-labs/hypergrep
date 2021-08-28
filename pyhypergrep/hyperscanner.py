@@ -92,6 +92,7 @@ def grep(
         ignore_case: bool,
         with_index: bool,
         count_only: bool,
+        no_messages: bool,
 ) -> Union[int, List[Union[str, Tuple[int, str]]]]:
     """Search a file for a regex pattern.
 
@@ -101,6 +102,7 @@ def grep(
         ignore_case: Perform case-insensitive matching.
         with_index: Whether to return the line indexes with the lines.
         count_only: Whether to count the matches, instead of decode the byte lines and store them.
+        no_messages: Suppress error messages about nonexistent or unreadable files.
 
     Returns:
         Line count, or list of lines, or list of tuples with the line index and matching line.
@@ -125,17 +127,24 @@ def grep(
                 else:
                     lines.append(line)
 
+    valid = True
     # Exception messages taken directly from "grep" error messages.
+    # Silent behavior also taken from "grep" to not raise or print a message if path is invalid.
     if not os.path.exists(file):
-        raise FileNotFoundError('No such file or directory')
+        valid = False
+        if not no_messages:
+            raise FileNotFoundError('No such file or directory')
     if os.path.isdir(file):
-        raise ValueError('is a directory ')
+        valid = False
+        if not no_messages:
+            raise ValueError('is a directory ')
 
-    # Always use hyperscan function defaults, but add caseless if user requested.
-    flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
-    if ignore_case:
-        flags |= hyper_utils.HS_FLAG_CASELESS
-    hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags])
+    if valid:
+        # Always use hyperscan function defaults, but add caseless if user requested.
+        flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
+        if ignore_case:
+            flags |= hyper_utils.HS_FLAG_CASELESS
+        hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags])
     return lines
 
 
@@ -149,6 +158,7 @@ def parallel_grep(
         with_file_name: bool = False,
         with_line_number: bool = False,
         use_multithreading: bool = True,
+        no_messages: bool = False,
 ) -> None:
     """Search files for a regex pattern and print the results based on user requested formatting.
 
@@ -162,6 +172,7 @@ def parallel_grep(
         with_file_name: Whether to display the file name as a prefix.
         with_line_number: Whether to display the line number of each match as a prefix.
         use_multithreading: Whether to use multithreading pool instead of multiprocessing.
+        no_messages: Suppress error messages about nonexistent or unreadable files.
     """
     pending = {}
     total = 0
@@ -208,7 +219,7 @@ def parallel_grep(
     with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
         jobs = []
         for index, file in enumerate(files):
-            args = (file, patterns, ignore_case, with_line_number, count_results or total_results)
+            args = (file, patterns, ignore_case, with_line_number, count_results or total_results, no_messages)
             jobs.append(pool.apply_async(_grep_with_index, (index, args), callback=_on_grep_finish))
         for job in jobs:
             job.get()
@@ -390,6 +401,8 @@ def parse_args(args: list = None) -> argparse.Namespace:
     output_args = parser.add_argument_group('General Output Control')
     output_args.add_argument('-c', '--count', action='store_true',
                              help='Suppress normal output; instead print a count of matching lines for each input file.')
+    output_args.add_argument('-s', '--no-messages', action='store_true',
+                             help='Suppress error messages about nonexistent or unreadable files.')
 
     prefix_args = parser.add_argument_group('Output Line Prefix Control')
     # Default to Nones in order to tell if user explicitly requested value, instead of default of False.
@@ -473,6 +486,7 @@ def main() -> None:
         with_file_name=with_filename,
         with_line_number=args.line_number,
         use_multithreading=args.use_multithreading,
+        no_messages=args.no_message
     )
 
 

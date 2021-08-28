@@ -195,6 +195,7 @@ TEST_CASES = {
                 False,
                 False,
                 False,
+                False,
             ],
             'expected': [
                 'foobar\n',
@@ -207,6 +208,7 @@ TEST_CASES = {
                 ['bar'],
                 False,
                 True,
+                False,
                 False,
             ],
             'expected': [
