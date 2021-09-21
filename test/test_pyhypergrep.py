@@ -198,20 +198,6 @@ TEST_CASES = {
                 False,
             ],
             'expected': [
-                'foobar\n',
-                'barfoo\n'
-            ]
-        },
-        'one pattern, with index': {
-            'args': [
-                TEST_FILE,
-                ['bar'],
-                False,
-                True,
-                False,
-                False,
-            ],
-            'expected': [
                 (2, 'foobar\n'),
                 (3, 'barfoo\n'),
             ]
@@ -476,6 +462,49 @@ TEST_CASES = {
             'expected': [
                 'barfoo',
                 'barfoo+',
+            ]
+        },
+        'only matching with single level groups': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['dummy file to test|sync with'],
+            ],
+            'kwargs': {
+                'only_matching': True
+            },
+            'expected': [
+                'dummy file to test',
+                'sync with',
+                'dummy file to test',
+                'sync with',
+            ]
+        },
+        'only matching with redundant inner nested level group': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['dummy file (to|to test)|sync with'],
+            ],
+            'kwargs': {
+                'only_matching': True
+            },
+            'expected': [
+                'dummy file to',
+                'sync with',
+                'dummy file to',
+                'sync with',
+            ]
+        },
+        'only matching pattern without only matching enabled': {
+            'args': [
+                [DUMMY_FILE_1],
+                ['dummy file to test|sync with'],
+            ],
+            'kwargs': {
+                'only_matching': False
+            },
+            'expected': [
+                '# Primary dummy file to test patterns. Keep in sync with greptest2.txt.',
+                '# Primary dummy file to test patterns. Keep in sync with greptest2.txt.',
             ]
         },
     },

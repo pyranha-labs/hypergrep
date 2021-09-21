@@ -90,27 +90,28 @@ def grep(
         file: str,
         patterns: List[str],
         ignore_case: bool,
-        with_index: bool,
         count_only: bool,
+        only_matching: bool,
         no_messages: bool,
-) -> Union[int, List[Union[str, Tuple[int, str]]]]:
+) -> Union[int, List[Tuple[int, str]]]:
     """Search a file for a regex pattern.
 
     Args:
         file: Path to a file on the local filesystem.
         patterns: Regex patterns compatible with Intel Hyperscan.
         ignore_case: Perform case-insensitive matching.
-        with_index: Whether to return the line indexes with the lines.
         count_only: Whether to count the matches, instead of decode the byte lines and store them.
+        only_matching: Save only the matched (non-empty) parts of a matching line, with each part on a separate line.
         no_messages: Suppress error messages about nonexistent or unreadable files.
 
     Returns:
-        Line count, or list of lines, or list of tuples with the line index and matching line.
+        Line count, or list of tuples with the line index and matching line.
 
     Raises:
         FileNotFoundError if the file does not exist.
         ValueError if the file is a directory.
     """
+    compiled_patterns = [re.compile(pattern) for pattern in patterns]
     lines = [] if not count_only else 0
 
     def _c_callback(matches: list, count: int) -> None:
@@ -119,13 +120,19 @@ def grep(
         if count_only:
             lines += count
         else:
-            for index in range(count):
-                match = matches[index]
-                line = match.line.decode(errors='ignore')
-                if with_index:
+            if only_matching:
+                # "Only matching" grep behavior converts every line into every match group per line.
+                for index in range(count):
+                    match = matches[index]
+                    line = match.line.decode(errors='ignore')
+                    # NOTE: Do not use findall, only finditer provides the correct results.
+                    for partial in compiled_patterns[match.id].finditer(line):
+                        lines.append((match.line_number + 1, f'{partial.group()}\n'))
+            else:
+                for index in range(count):
+                    match = matches[index]
+                    line = match.line.decode(errors='ignore')
                     lines.append((match.line_number + 1, line))
-                else:
-                    lines.append(line)
 
     valid = True
     # Exception messages taken directly from "grep" error messages.
@@ -148,7 +155,7 @@ def grep(
     return lines
 
 
-def parallel_grep(
+def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylint: disable=too-many-arguments
         files: list,
         patterns: List[str],
         ignore_case: bool = False,
@@ -158,6 +165,7 @@ def parallel_grep(
         with_file_name: bool = False,
         with_line_number: bool = False,
         use_multithreading: bool = True,
+        only_matching: bool = False,
         no_messages: bool = False,
 ) -> None:
     """Search files for a regex pattern and print the results based on user requested formatting.
@@ -172,6 +180,7 @@ def parallel_grep(
         with_file_name: Whether to display the file name as a prefix.
         with_line_number: Whether to display the line number of each match as a prefix.
         use_multithreading: Whether to use multithreading pool instead of multiprocessing.
+        only_matching: Save only the matched (non-empty) parts of a matching line, with each part on a separate line.
         no_messages: Suppress error messages about nonexistent or unreadable files.
     """
     pending = {}
@@ -219,7 +228,7 @@ def parallel_grep(
     with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
         jobs = []
         for index, file in enumerate(files):
-            args = (file, patterns, ignore_case, with_line_number, count_results or total_results, no_messages)
+            args = (file, patterns, ignore_case, count_results or total_results, only_matching, no_messages)
             jobs.append(pool.apply_async(_grep_with_index, (index, args), callback=_on_grep_finish))
         for job in jobs:
             job.get()
@@ -250,14 +259,14 @@ def print_results(
                 print(f'{file_name}:{line[0]}:{line[1]}', end='')
         else:
             for line in results:
-                print(f'{file_name}:{line}', end='')
+                print(f'{file_name}:{line[1]}', end='')
     else:
         if with_line_number:
             for line in results:
                 print(f'{line[0]}:{line[1]}', end='')
         else:
             for line in results:
-                print(line, end='')
+                print(line[1], end='')
 
 
 def read_stdin() -> Generator[str, None, None]:
@@ -401,6 +410,8 @@ def parse_args(args: list = None) -> argparse.Namespace:
     output_args = parser.add_argument_group('General Output Control')
     output_args.add_argument('-c', '--count', action='store_true',
                              help='Suppress normal output; instead print a count of matching lines for each input file.')
+    output_args.add_argument('-o', '--only-matching', action='store_true',
+                             help='Print only the matched (non-empty) parts of a matching line, with each such part on a separate output line.')
     output_args.add_argument('-s', '--no-messages', action='store_true',
                              help='Suppress error messages about nonexistent or unreadable files.')
 
@@ -486,6 +497,7 @@ def main() -> None:
         with_file_name=with_filename,
         with_line_number=args.line_number,
         use_multithreading=args.use_multithreading,
+        only_matching=args.only_matching,
         no_messages=args.no_message
     )
 
