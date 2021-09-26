@@ -2,6 +2,7 @@
 
 import ctypes
 import os
+import threading
 
 from typing import Callable
 from typing import List
@@ -157,16 +158,59 @@ def hyperscan(
     # Wrap the callback in the ctype to allow passing to C functions.
     callback = HYPERSCANNER_CALLBACK_TYPE(callback)
     hyperscanner_lib = _get_hyperscanner_lib()
-    ret_code = hyperscanner_lib.hyperscan(
-        path.encode(),
-        pattern_array,
-        flags_array,
-        len(pattern_array),
-        callback,
-        buffer_size,
-        buffer_count,
-    )
+    ret_code = 0
+
+    # NOTE: Do not remove this wrapper or change thread from daemon to ensure that Python receives signals.
+    def _wrapper() -> None:
+        """Wrapper to allow running the CDLL call as non-blocking and allow Python to intercept signals."""
+        nonlocal ret_code
+        ret_code = hyperscanner_lib.hyperscan(
+            path.encode(),
+            pattern_array,
+            flags_array,
+            len(pattern_array),
+            callback,
+            buffer_size,
+            buffer_count,
+        )
+    hyperscan_thread = threading.Thread(target=_wrapper, daemon=True)
+    hyperscan_thread.start()
+    try:
+        # Hard cap the thread at 1 hour in case anything goes wrong.
+        hyperscan_thread.join(timeout=3600)
+    except KeyboardInterrupt:
+        ret_code = 130
     return ret_code
+
+
+def hypergrep(
+        file: str,
+        patterns: List[str],
+) -> Tuple[int, List[str]]:
+    """Basic reusable grep like function using Intel Hyperscan.
+
+    Contrary to the "grep" in the name, it returns the lines instead of printing them. Useful for testing
+    basic functionality on a system, or simple use cases.
+
+    Args:
+        file: Path to a file on the local filesystem.
+        patterns: Regex patterns compatible with Intel Hyperscan.
+
+    Returns:
+        Hyperscan return code, and matching lines.
+    """
+    lines = []
+
+    def _c_callback(matches: List[HyperscannerResult], count: int) -> None:
+        """Called by the C library everytime it finds a matching line."""
+        nonlocal lines
+        for index in range(count):
+            match = matches[index]
+            line = match.line.decode(errors='ignore')
+            lines.append(line)
+
+    return_code = hyperscan(file, patterns, _c_callback)
+    return return_code, lines
 
 
 def prepare_hyperscan_patterns(
@@ -209,33 +253,3 @@ def prepare_hyperscan_patterns(
     flags_array = (ctypes.c_uint * (len(flags)))()
     flags_array[:] = [ctypes.c_uint(flag) for flag in flags]
     return pattern_array, flags_array
-
-
-def hypergrep(
-        file: str,
-        patterns: List[str],
-) -> Tuple[int, List[str]]:
-    """Basic reusable grep like function using Intel Hyperscan.
-
-    Contrary to the "grep" in the name, it returns the lines instead of printing them. Useful for testing
-    basic functionality on a system, or simple use cases.
-
-    Args:
-        file: Path to a file on the local filesystem.
-        patterns: Regex patterns compatible with Intel Hyperscan.
-
-    Returns:
-        Hyperscan return code, and matching lines.
-    """
-    lines = []
-
-    def _c_callback(matches: List[HyperscannerResult], count: int) -> None:
-        """Called by the C library everytime it finds a matching line."""
-        nonlocal lines
-        for index in range(count):
-            match = matches[index]
-            line = match.line.decode(errors='ignore')
-            lines.append(line)
-
-    return_code = hyperscan(file, patterns, _c_callback)
-    return return_code, lines
