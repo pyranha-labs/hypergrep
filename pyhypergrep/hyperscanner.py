@@ -69,7 +69,7 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
         all_patterns.append(args.pattern)
     if args.pattern_files:
         for file_name in args.pattern_files:
-            with open(file_name, 'rt') as pattern_file:
+            with open(file_name, 'rt', encoding='utf-8') as pattern_file:
                 all_patterns.extend(pattern.rstrip('\n') for pattern in pattern_file.readlines())
 
     # Perform a basic regex compilation test before Hyperscan is started.
@@ -78,7 +78,7 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
         try:
             re.compile(pattern)
         except Exception as error:
-            raise ValueError(f'hyperscanner: invalid regex: {error}')
+            raise ValueError(f'hyperscanner: invalid regex: {error}') from error
     # Perform final validation using Hyperscan. Some regex constructs are PCRE compatible, but not Hyperscan compatible.
     # Unfortunately Hyperscan does not return the exact reason, just a generic non-zero compilation failure return code.
     if hyper_utils.check_hyperscan_compatibility(all_patterns):
@@ -216,10 +216,10 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
                     with_file_name=with_file_name,
                     with_line_number=with_line_number,
                 )
-            except BrokenPipeError:
+            except BrokenPipeError as error:
                 # NOTE: Piping output to additional commands such as head may close the output file.
                 # This is unavoidable, and the only thing that can be done is catch, and exit.
-                raise SystemExit(1)
+                raise SystemExit(1) from error
         next_index += 1
         if next_index in pending:
             _on_grep_finish((next_index, pending.pop(next_index)))
@@ -313,7 +313,7 @@ def to_basic_regular_expressions(patterns: List[str]) -> List[str]:
         try:
             re.compile(basic_pattern)
         except Exception as error:
-            raise ValueError(f'hyperscanner: invalid regex: {error}')
+            raise ValueError(f'hyperscanner: invalid regex: {error}') from error
     return basic_patterns
 
 
@@ -456,7 +456,7 @@ def main() -> None:
         patterns = get_argparse_patterns(args)
     except ValueError as error:
         print(error)
-        raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
+        raise SystemExit(2) from error  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
 
     if not patterns:
         args.parser.print_usage()
@@ -466,7 +466,7 @@ def main() -> None:
             patterns = to_basic_regular_expressions(patterns)
         except ValueError as error:
             print(error)
-            raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
+            raise SystemExit(2) from error  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
     if args.gnu_regexp and args.regexp != 'pcre':
         # GNU patterns are compatible with ERE, but not PCRE. PCRE expects full modern syntax.
         patterns = to_gnu_regular_expressions(patterns)
@@ -505,5 +505,5 @@ def main() -> None:
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
-        raise SystemExit(130)  # Exit with 130 for "script exited with ctrl+c".
+    except KeyboardInterrupt as error:
+        raise SystemExit(130) from error  # Exit with 130 for "script exited with ctrl+c".
