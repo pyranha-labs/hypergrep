@@ -507,6 +507,40 @@ TEST_CASES = {
                 '# Primary dummy file to test patterns. Keep in sync with greptest2.txt.',
             ]
         },
+        'multiple unique patterns': {
+            'args': [
+                [DUMMY_FILE_1],
+                [
+                    'foobar',
+                    'extra foo bar',
+                ],
+            ],
+            'kwargs': {
+                'with_file_name': True,
+                'with_line_number': True,
+            },
+            'expected': [
+                'greptest1.txt:3:foobar',
+                'greptest1.txt:16:extra foo bar'
+            ]
+        },
+        'Multiple redundant patterns': {
+            'args': [
+                [DUMMY_FILE_1],
+                [
+                    'foobar',
+                    'fo{2}bar',
+                    'fo+bar',
+                ],
+            ],
+            'kwargs': {
+                'with_file_name': True,
+                'with_line_number': True,
+            },
+            'expected': [
+                'greptest1.txt:3:foobar',
+            ]
+        },
     },
     'parse_args': {
         'leading pattern positional and file positionals': {

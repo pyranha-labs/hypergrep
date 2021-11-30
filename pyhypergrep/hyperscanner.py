@@ -151,7 +151,7 @@ def grep(
         flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
         if ignore_case:
             flags |= hyper_utils.HS_FLAG_CASELESS
-        hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags])
+        hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags for _ in patterns])
     return lines
 
 

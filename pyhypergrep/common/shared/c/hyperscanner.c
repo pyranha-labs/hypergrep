@@ -122,35 +122,25 @@ static void event_handler(hyperscanner_result_t* results, int result_count) {
  * expressions: Regex patterns to initialize into the database.
  * expression_flags: Flags to set on each regex pattern in order to match. i.e. HS_FLAG_DOTALL
  *     Flags in hyperscan use a bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH == 10
+* expression_ids: IDs to apply to each regex pattern to group related patterns and prevent separate callbacks.
+ *     Provide unique IDs if every pattern should return matches for a line, even if another pattern already matched.
  * elements: Size the pattern array.
  */
-static int init_hs_db(hs_database_t** db, const char* const* expressions, const unsigned int* expression_flags, int elements) {
+static int init_hs_db(
+    hs_database_t** db,
+    const char* const* expressions,
+    const unsigned int* expression_flags,
+    const unsigned int* expression_ids,
+    int elements
+) {
     int ret = 0;
 
-    // Create an id and flag for every expression. These must be in the same order as the expression they apply to.
     hs_compile_error_t* err = NULL;
-    unsigned int* ids = (unsigned int*) malloc(sizeof(unsigned int) * elements);
-    unsigned int* flags = (unsigned int*) malloc(sizeof(unsigned int) * elements);
-    if (!ids || !flags) {
-        ret = HYPERSCANNER_COMPILE_MEM;
-        goto cleanup;
-    }
-
-    for (int id = 0; id < elements; id++) {
-        ids[id] = id;
-        // Hyperscan flags: https://intel.github.io/hyperscan/dev-reference/api_files.html
-        flags[id] = expression_flags[id];
-    }
-
-    if (hs_compile_multi(expressions, flags, ids, elements, HS_MODE_BLOCK, NULL, db, &err) != HS_SUCCESS) {
+    if (hs_compile_multi(expressions, expression_flags, expression_ids, elements, HS_MODE_BLOCK, NULL, db, &err) != HS_SUCCESS) {
         ret = HYPERSCANNER_COMPILE;
     }
 
-cleanup:
-    // Ensure the error, ids, and flags are freed before exiting regardless of compilation status.
     hs_free_compile_error(err);
-    free(flags);
-    free(ids);
     return ret;
 }
 
@@ -160,16 +150,19 @@ cleanup:
  * patterns: Regular expressions to be scanned against every line.
  * pattern_flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
  *     Flags in hyperscan use a bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH == 10
+ * pattern_ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
+ *     Provide unique IDs if every pattern should return matches for a line, even if another pattern already matched.
  * elements: Size the pattern array.
  */
 int check_patterns(
     const char* const* patterns,
     const unsigned int* pattern_flags,
+    const unsigned int* pattern_ids,
     const unsigned int elements
 ) {
     int ret = 0;
     hs_database_t* db = NULL;
-    if (init_hs_db(&db, patterns, pattern_flags, elements) != 0) {
+    if (init_hs_db(&db, patterns, pattern_flags, pattern_ids, elements) != 0) {
         ret = HYPERSCANNER_DB;
     }
     hs_free_database(db);
@@ -236,6 +229,8 @@ int hyperscan_gz(char* file_name, hyperscanner_state_t* state, hs_database_t* db
  * patterns: Regular expressions to be scanned against every line.
  * pattern_flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
  *     Flags in hyperscan use a bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH == 10
+ * pattern_ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
+ *     Provide unique IDs if every pattern should return matches for a line, even if another pattern already matched.
  * elements: Size the pattern array.
  * on_event: Function to call with simplified match information from Intel Hyperscan.
  * buffer_size: How large of a char buffer to use while reading in strings. Reads up to first newline or len - 1.
@@ -245,6 +240,7 @@ int hyperscan(
     char* file_name,
     const char* const* patterns,
     const unsigned int* pattern_flags,
+    const unsigned int* pattern_ids,
     const unsigned int elements,
     hs_event on_event,
     const int buffer_size,
@@ -282,7 +278,7 @@ int hyperscan(
 
     hs_database_t* db = NULL;
     hs_scratch_t* scratch = NULL;
-    if (init_hs_db(&db, patterns, pattern_flags, elements) != 0) {
+    if (init_hs_db(&db, patterns, pattern_flags, pattern_ids, elements) != 0) {
         fprintf(stderr, "ERROR: Unable to create database. Exiting.\n");
         ret = HYPERSCANNER_DB;
         goto cleanup;
@@ -331,12 +327,14 @@ int main(int argc, char *argv[]) {
         char* input_file = argv[i];
         const char* patterns[1];
         unsigned int pattern_flags[1];
+        unsigned int pattern_ids[1];
         patterns[0] = argv[1];
         // HS_FLAG_DOTALL for performance.
         // HS_FLAG_MULTILINE to match ^ and $ against newlines.
         // HS_FLAG_SINGLEMATCH to stop after first callback for a pattern.
         pattern_flags[i - 2] = HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH;
-        ret = hyperscan(input_file, patterns, pattern_flags, 1, event_handler, 65535, 256);
+        pattern_ids[i - 2] = i - 2;
+        ret = hyperscan(input_file, patterns, pattern_flags, pattern_ids, 1, event_handler, 65535, 256);
     }
     return ret;
 }

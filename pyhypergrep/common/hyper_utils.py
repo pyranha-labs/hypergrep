@@ -113,11 +113,12 @@ def check_hyperscan_compatibility(
     Returns:
         ret_code: The response code received from the C backend if there was a failure, 0 otherwise.
     """
-    pattern_array, flags_array = prepare_hyperscan_patterns(patterns, flags=flags)
+    pattern_array, flags_array, ids_array = prepare_hyperscan_patterns(patterns, flags=flags)
     hyperscanner_lib = _get_hyperscanner_lib()
     ret_code = hyperscanner_lib.check_patterns(
         pattern_array,
         flags_array,
+        ids_array,
         len(pattern_array),
     )
     return ret_code
@@ -127,9 +128,10 @@ def hyperscan(
         path: str,
         patterns: List[str],
         callback: Callable,
+        flags: List[int] = (),
+        ids: List[int] = (),
         buffer_size: int = 65535,
         buffer_count: int = 32,
-        flags: List[int] = (),
 ) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
 
@@ -140,20 +142,22 @@ def hyperscan(
         patterns: Regex patterns in text format used to match lines.
         callback: Where every regex hit (line index, pattern id, and byte string) are sent.
             Must match HYPERSCANNER_CALLBACK_TYPE.
+        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
+            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+        ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
+            Defaults to: All patterns share the same ID; multiple callbacks for the same line are not received.
         buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
         buffer_count: How many line matches to buffer before calling callback.
             Reduces overhead of C callback calls, at cost of delaying python processing.
             Basic guidelines:
                 Multithreading + millions of matches = increase limit.
                 Multiprocessing or few matches = decrease limit or leave as is.
-        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
-            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
-            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
 
     Returns:
         Response code received from the C backend if there was a failure, 0 otherwise.
     """
-    pattern_array, flags_array = prepare_hyperscan_patterns(patterns, flags=flags)
+    pattern_array, flags_array, ids_array = prepare_hyperscan_patterns(patterns, flags=flags, ids=ids)
 
     # Wrap the callback in the ctype to allow passing to C functions.
     callback = HYPERSCANNER_CALLBACK_TYPE(callback)
@@ -168,6 +172,7 @@ def hyperscan(
             path.encode(),
             pattern_array,
             flags_array,
+            ids_array,
             len(pattern_array),
             callback,
             buffer_size,
@@ -216,7 +221,8 @@ def hypergrep(
 def prepare_hyperscan_patterns(
         patterns: List[str],
         flags: List[int] = (),
-) -> Tuple[ctypes.Array, ctypes.Array]:
+        ids: List[int] = (),
+) -> Tuple[ctypes.Array, ctypes.Array, ctypes.Array]:
     """Prepare python regexes and flags for use with Intel Hyperscan.
 
     Args:
@@ -224,6 +230,8 @@ def prepare_hyperscan_patterns(
         flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
             Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
             Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+        ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
+            Defaults to: All patterns share the same ID; multiple callbacks for the same line are not received.
 
     Returns:
         C array of strings, and C array of ints, compatible as C lib function args.
@@ -237,6 +245,13 @@ def prepare_hyperscan_patterns(
         flags = [HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH for _ in patterns]
     if len(flags) != len(patterns):
         raise ValueError(f'Found {len(flags)} flags, expecting {len(patterns)}. Hyperscan flags must be provided for each regex to compile the database.')
+
+    if not ids:
+        # Set the default group IDs to 0 for the most common usage if none were provided (all patterns in 1 group).
+        # This will ensure that searching will stop after the first match, and only 1 callback is received per line.
+        ids = [0 for _ in patterns]
+    if len(ids) != len(patterns):
+        raise ValueError(f'Found {len(ids)} ids, expecting {len(patterns)}. Hyperscan ids must be provided for each regex to compile the database.')
 
     # C string arrays must be created by performing the following:
     # 1. Convert all strings to bytes.
@@ -252,4 +267,6 @@ def prepare_hyperscan_patterns(
     pattern_array[:] = encoded_patterns
     flags_array = (ctypes.c_uint * (len(flags)))()
     flags_array[:] = [ctypes.c_uint(flag) for flag in flags]
-    return pattern_array, flags_array
+    ids_array = (ctypes.c_uint * (len(ids)))()
+    ids_array[:] = [ctypes.c_uint(id_num) for id_num in ids]
+    return pattern_array, flags_array, ids_array

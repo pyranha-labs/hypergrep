@@ -1,5 +1,12 @@
 # PyHyperGrep
 
+[![python: python3.7+](https://img.shields.io/badge/python-3.7-blue)](https://docs.python.org/3.7/)
+[![python style: google](https://img.shields.io/badge/python%20style-google-blue)](https://google.github.io/styleguide/pyguide.html)
+[![code quality: pylint](https://img.shields.io/badge/code%20quality-pylint-green)](https://github.com/PyCQA/pylint)
+[![code style: pycodestyle](https://img.shields.io/badge/code%20style-pycodestyle-green)](https://github.com/PyCQA/pycodestyle)
+[![doc style: pydocstyle](https://img.shields.io/badge/doc%20style-pydocstyle-green)](https://github.com/PyCQA/pydocstyle)
+[![license: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](https://www.apache.org/licenses/LICENSE-2.0)
+
 PyHyperGrep is a Python + Intel Hyperscan Global Regular Expression Processing library. While a standard grep is
 designed to print, this is designed to allow full control over processing matches. The library supports scanning
 plaintext, gzip, and ztsd compressed files for regular expressions, and customizing the action to take when matched.
