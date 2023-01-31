@@ -130,8 +130,8 @@ def hyperscan(
         callback: Callable,
         flags: List[int] = (),
         ids: List[int] = (),
-        buffer_size: int = 65535,
-        buffer_count: int = 32,
+        buffer_size: int = 262140,
+        buffer_count: int = 16,
 ) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
 
