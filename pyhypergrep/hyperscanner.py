@@ -7,20 +7,16 @@ import multiprocessing
 import os
 import re
 import sys
-
 from multiprocessing.pool import ThreadPool
 from textwrap import dedent
 from typing import Any
 from typing import Generator
 from typing import Iterable
-from typing import List
-from typing import Tuple
-from typing import Union
 
 from pyhypergrep.common import hyper_utils
 
 
-def _grep_with_index(index: int, args: Iterable) -> Tuple[int, Any]:
+def _grep_with_index(index: int, args: Iterable) -> tuple[int, Any]:
     """Wrapper to run grep and return with an index representing the job ID."""
     try:
         result = grep(*args)
@@ -29,7 +25,7 @@ def _grep_with_index(index: int, args: Iterable) -> Tuple[int, Any]:
     return index, result
 
 
-def get_argparse_files(args: argparse.Namespace) -> List[str]:
+def get_argparse_files(args: argparse.Namespace) -> list[str]:
     """Pull all files requested by the user from "grep" argparse arguments.
 
     Args:
@@ -48,7 +44,7 @@ def get_argparse_files(args: argparse.Namespace) -> List[str]:
     return all_files
 
 
-def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
+def get_argparse_patterns(args: argparse.Namespace) -> list[str]:
     """Pull all patterns requested by the user from "grep" argparse arguments.
 
     Args:
@@ -69,8 +65,8 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
         all_patterns.append(args.pattern)
     if args.pattern_files:
         for file_name in args.pattern_files:
-            with open(file_name, 'rt', encoding='utf-8') as pattern_file:
-                all_patterns.extend(pattern.rstrip('\n') for pattern in pattern_file.readlines())
+            with open(file_name, "rt", encoding="utf-8") as pattern_file:
+                all_patterns.extend(pattern.rstrip("\n") for pattern in pattern_file.readlines())
 
     # Perform a basic regex compilation test before Hyperscan is started.
     # This does not guarantee 100% compatibility, but reduces the need for Hyperscan to validate common errors.
@@ -78,22 +74,24 @@ def get_argparse_patterns(args: argparse.Namespace) -> List[str]:
         try:
             re.compile(pattern)
         except Exception as error:
-            raise ValueError(f'hyperscanner: invalid regex: {error}') from error
+            raise ValueError(f"hyperscanner: invalid regex: {error}") from error
     # Perform final validation using Hyperscan. Some regex constructs are PCRE compatible, but not Hyperscan compatible.
     # Unfortunately Hyperscan does not return the exact reason, just a generic non-zero compilation failure return code.
     if hyper_utils.check_hyperscan_compatibility(all_patterns):
-        raise ValueError('hyperscanner: incompatible regex: for more information visit https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs')
+        raise ValueError(
+            "hyperscanner: incompatible regex: for more information visit https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs"
+        )
     return all_patterns
 
 
 def grep(
-        file: str,
-        patterns: List[str],
-        ignore_case: bool,
-        count_only: bool,
-        only_matching: bool,
-        no_messages: bool,
-) -> Union[int, List[Tuple[int, str]]]:
+    file: str,
+    patterns: list[str],
+    ignore_case: bool,
+    count_only: bool,
+    only_matching: bool,
+    no_messages: bool,
+) -> int | list[tuple[int, str]]:
     """Search a file for a regex pattern.
 
     Args:
@@ -124,14 +122,14 @@ def grep(
                 # "Only matching" grep behavior converts every line into every match group per line.
                 for index in range(count):
                     match = matches[index]
-                    line = match.line.decode(errors='ignore')
+                    line = match.line.decode(errors="ignore")
                     # NOTE: Do not use findall, only finditer provides the correct results.
                     for partial in compiled_patterns[match.id].finditer(line):
-                        lines.append((match.line_number + 1, f'{partial.group()}\n'))
+                        lines.append((match.line_number + 1, f"{partial.group()}\n"))
             else:
                 for index in range(count):
                     match = matches[index]
-                    line = match.line.decode(errors='ignore')
+                    line = match.line.decode(errors="ignore")
                     lines.append((match.line_number + 1, line))
 
     valid = True
@@ -140,11 +138,11 @@ def grep(
     if not os.path.exists(file):
         valid = False
         if not no_messages:
-            raise FileNotFoundError('No such file or directory')
+            raise FileNotFoundError("No such file or directory")
     if os.path.isdir(file):
         valid = False
         if not no_messages:
-            raise ValueError('is a directory ')
+            raise ValueError("is a directory")
 
     if valid:
         # Always use hyperscan function defaults, but add caseless if user requested.
@@ -155,18 +153,18 @@ def grep(
     return lines
 
 
-def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylint: disable=too-many-arguments
-        files: list,
-        patterns: List[str],
-        ignore_case: bool = False,
-        ordered_results: bool = True,
-        count_results: bool = False,
-        total_results: bool = False,
-        with_file_name: bool = False,
-        with_line_number: bool = False,
-        use_multithreading: bool = True,
-        only_matching: bool = False,
-        no_messages: bool = False,
+def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylint: disable=too-many-arguments,too-many-locals
+    files: list,
+    patterns: list[str],
+    ignore_case: bool = False,
+    ordered_results: bool = True,
+    count_results: bool = False,
+    total_results: bool = False,
+    with_file_name: bool = False,
+    with_line_number: bool = False,
+    use_multithreading: bool = True,
+    only_matching: bool = False,
+    no_messages: bool = False,
 ) -> None:
     """Search files for a regex pattern and print the results based on user requested formatting.
 
@@ -187,7 +185,7 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
     total = 0
     next_index = 0
 
-    def _on_grep_finish(result: Tuple[int, List[Union[str, Tuple[int, str]]]]) -> None:
+    def _on_grep_finish(result: tuple[int, list[str | tuple[int, str]]]) -> None:
         """Callback to parallel processing pool to track and print completed requests."""
         nonlocal total
         nonlocal next_index
@@ -199,15 +197,15 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
         file_name = files[grep_index]
         if isinstance(grep_result, Exception):
             # Error message style taken from "grep" output format.
-            print(f'hyperscanner: {file_name}: {grep_result}')
+            print(f"hyperscanner: {file_name}: {grep_result}")
             return
         if total_results:
             total += grep_result
         elif count_results:
             if with_file_name:
-                print(f'{file_name}:{grep_result}')
+                print(f"{file_name}:{grep_result}")
             else:
-                print(f'{grep_result}')
+                print(f"{grep_result}")
         else:
             try:
                 print_results(
@@ -225,7 +223,7 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
             _on_grep_finish((next_index, pending.pop(next_index)))
 
     workers = min(max(multiprocessing.cpu_count() - 1, 1), len(files))
-    with (ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers)) as pool:
+    with ThreadPool(processes=workers) if use_multithreading else multiprocessing.Pool(processes=workers) as pool:
         jobs = []
         for index, file in enumerate(files):
             args = (file, patterns, ignore_case, count_results or total_results, only_matching, no_messages)
@@ -238,10 +236,10 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
 
 
 def print_results(
-        results: list,
-        file_name: str,
-        with_file_name: bool = False,
-        with_line_number: bool = False,
+    results: list,
+    file_name: str,
+    with_file_name: bool = False,
+    with_line_number: bool = False,
 ) -> None:
     """Print the full results to the screen based on user requested formatting.
 
@@ -256,17 +254,17 @@ def print_results(
     if with_file_name:
         if with_line_number:
             for line in results:
-                print(f'{file_name}:{line[0]}:{line[1]}', end='')
+                print(f"{file_name}:{line[0]}:{line[1]}", end="")
         else:
             for line in results:
-                print(f'{file_name}:{line[1]}', end='')
+                print(f"{file_name}:{line[1]}", end="")
     else:
         if with_line_number:
             for line in results:
-                print(f'{line[0]}:{line[1]}', end='')
+                print(f"{line[0]}:{line[1]}", end="")
         else:
             for line in results:
-                print(line[1], end='')
+                print(line[1], end="")
 
 
 def read_stdin() -> Generator[str, None, None]:
@@ -284,7 +282,7 @@ def read_stdin() -> Generator[str, None, None]:
         yield line
 
 
-def to_basic_regular_expressions(patterns: List[str]) -> List[str]:
+def to_basic_regular_expressions(patterns: list[str]) -> list[str]:
     """Convert regexes into POSIX style Basic Regular Expressions (BRE).
 
     Args:
@@ -305,19 +303,21 @@ def to_basic_regular_expressions(patterns: List[str]) -> List[str]:
         # This is the default pattern behavior of "grep". See "man grep" for more details.
         # ERE/PCRE special regex characters: .*^$+?()[]{}|
         # BRE regex characters treated as literals: +?(){}|
-        basic_pattern = re.sub(r'(?<!\\)([+?(){}|])', lambda match: f'HYPERSCANNERSWAPFLAG{match.group(0)}', pattern)
-        basic_pattern = re.sub(r'(\\[+?(){}|])', lambda match: match.group(0)[-1], basic_pattern)
-        basic_pattern = re.sub(r'HYPERSCANNERSWAPFLAG([+?(){}|])', lambda match: f'\\{match.group(0)[-1]}', basic_pattern)
+        basic_pattern = re.sub(r"(?<!\\)([+?(){}|])", lambda match: f"HYPERSCANNERSWAPFLAG{match.group(0)}", pattern)
+        basic_pattern = re.sub(r"(\\[+?(){}|])", lambda match: match.group(0)[-1], basic_pattern)
+        basic_pattern = re.sub(
+            r"HYPERSCANNERSWAPFLAG([+?(){}|])", lambda match: f"\\{match.group(0)[-1]}", basic_pattern
+        )
         basic_patterns.append(basic_pattern)
         # Perform another validation pass after a downgrade of the pattern to BRE to ensure it is still compatible.
         try:
             re.compile(basic_pattern)
         except Exception as error:
-            raise ValueError(f'hyperscanner: invalid regex: {error}') from error
+            raise ValueError(f"hyperscanner: invalid regex: {error}") from error
     return basic_patterns
 
 
-def to_gnu_regular_expressions(patterns: List[str]) -> List[str]:
+def to_gnu_regular_expressions(patterns: list[str]) -> list[str]:
     """Convert regexes into GNU style regexes.
 
     This should not be used if the original regex is PCRE. PCRE expects patterns as is, without swaps.
@@ -335,7 +335,7 @@ def to_gnu_regular_expressions(patterns: List[str]) -> List[str]:
         # GNU regex characters to be swapped for ERE/PCRE patterns:
         # \< == \b
         # \> == \b
-        basic_pattern = re.sub(r'(?<!\\)(\\[<>])', lambda match: '\\b', pattern)
+        basic_pattern = re.sub(r"(?<!\\)(\\[<>])", lambda match: "\\b", pattern)
         gnu_patterns.append(basic_pattern)
     return gnu_patterns
 
@@ -350,7 +350,8 @@ def parse_args(args: list = None) -> argparse.Namespace:
         formatter_class=argparse.RawTextHelpFormatter,
         # Do not add the default help, add it manually. Grep uses -h as a standard arg.
         add_help=False,
-        description=dedent('''\
+        description=dedent(
+            """\
             Fast, multi-threaded, grep (Global Regular Expression Print).
 
             Intel Hyperscan based regex processor. Provides the following benefits over standard implementations:
@@ -371,7 +372,8 @@ def parse_args(args: list = None) -> argparse.Namespace:
                 Pass file parameters from the command line, matching standard "grep":
                     $ hyperscanner <regex> <file(s)>
                 Pass file parameters from stdin, usually piped from "find" or similar command:
-                    $ find <args> | hyperscanner <regex>''')
+                    $ find <args> | hyperscanner <regex>"""
+        ),
     )
     # NOTE: Avoid adding any arguments that are reserved by "grep".
     # Other "grep" commands subprocess grep and pass through the args for maximum compatibility.
@@ -379,69 +381,152 @@ def parse_args(args: list = None) -> argparse.Namespace:
     # All arguments that needs parity with "grep" must be declared here.
 
     # Arguments reserved by "grep". Argparse groups match "grep" help output organization:
-    parser.add_argument('pattern', nargs='?',
-                        help='Regex pattern to use.')
-    parser.add_argument('files', nargs='*',
-                        help='Files to scan.')
+    parser.add_argument("pattern", nargs="?", help="Regex pattern to use.")
+    parser.add_argument("files", nargs="*", help="Files to scan.")
 
-    generic_args = parser.add_argument_group('Generic Program Information')
+    generic_args = parser.add_argument_group("Generic Program Information")
     # Add help manually, using only --help. Grep uses -h as a standard arg.
-    generic_args.add_argument('--help', action='help', default=argparse.SUPPRESS,
-                              help='show this help message and exit')
+    generic_args.add_argument(
+        "--help", action="help", default=argparse.SUPPRESS, help="show this help message and exit"
+    )
 
-    pattern_args = parser.add_argument_group('Pattern Syntax')
+    pattern_args = parser.add_argument_group("Pattern Syntax")
     regexp_group = pattern_args.add_mutually_exclusive_group()
-    regexp_group.set_defaults(regexp='bre')
-    regexp_group.add_argument('-E', '--extended-regexp', dest='regexp', action='store_const', const='ere',
-                              help='Interpret PATTERNS as extended regular expressions (EREs).')
-    regexp_group.add_argument('-G', '--basic-regexp', dest='regexp', action='store_const', const='bre',
-                              help='Interpret PATTERNS as basic regular expressions (See "man grep" for more details). This is the default.')
-    regexp_group.add_argument('-P', '--perl-regexp', dest='regexp', action='store_const', const='pcre',
-                              help='Interpret PATTERNS as Perl-compatible regular expressions (PCREs).')
+    regexp_group.set_defaults(regexp="bre")
+    regexp_group.add_argument(
+        "-E",
+        "--extended-regexp",
+        dest="regexp",
+        action="store_const",
+        const="ere",
+        help="Interpret PATTERNS as extended regular expressions (EREs).",
+    )
+    regexp_group.add_argument(
+        "-G",
+        "--basic-regexp",
+        dest="regexp",
+        action="store_const",
+        const="bre",
+        help='Interpret PATTERNS as basic regular expressions (See "man grep" for more details). This is the default.',
+    )
+    regexp_group.add_argument(
+        "-P",
+        "--perl-regexp",
+        dest="regexp",
+        action="store_const",
+        const="pcre",
+        help="Interpret PATTERNS as Perl-compatible regular expressions (PCREs).",
+    )
 
-    matching_args = parser.add_argument_group('Matching Control')
-    matching_args.add_argument('-e', '--regexp', action='append', dest='patterns', metavar='pattern',
-                               help='Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.')
-    matching_args.add_argument('-f', '--file', action='append', dest='pattern_files', metavar='file',
-                               help='Obtain patterns from FILE, one per line. If this option is used multiple times or is combined with the -e (--regexp) option, search for all patterns given. The empty file contains zero patterns, and therefore matches nothing.')
-    matching_args.add_argument('-i', '--ignore-case', action='store_true',
-                               help='Perform case insensitive matching.  By default, grep is case sensitive.')
+    matching_args = parser.add_argument_group("Matching Control")
+    matching_args.add_argument(
+        "-e",
+        "--regexp",
+        action="append",
+        dest="patterns",
+        metavar="pattern",
+        help="Use PATTERNS as the patterns. If this option is used multiple times or is combined with the -f (--file) option, search for all patterns given.",
+    )
+    matching_args.add_argument(
+        "-f",
+        "--file",
+        action="append",
+        dest="pattern_files",
+        metavar="file",
+        help="Obtain patterns from FILE, one per line. If this option is used multiple times or is combined with the -e (--regexp) option, search for all patterns given. The empty file contains zero patterns, and therefore matches nothing.",
+    )
+    matching_args.add_argument(
+        "-i",
+        "--ignore-case",
+        action="store_true",
+        help="Perform case insensitive matching.  By default, grep is case sensitive.",
+    )
 
-    output_args = parser.add_argument_group('General Output Control')
-    output_args.add_argument('-c', '--count', action='store_true',
-                             help='Suppress normal output; instead print a count of matching lines for each input file.')
-    output_args.add_argument('-o', '--only-matching', action='store_true',
-                             help='Print only the matched (non-empty) parts of a matching line, with each such part on a separate output line.')
-    output_args.add_argument('-s', '--no-messages', action='store_true',
-                             help='Suppress error messages about nonexistent or unreadable files.')
+    output_args = parser.add_argument_group("General Output Control")
+    output_args.add_argument(
+        "-c",
+        "--count",
+        action="store_true",
+        help="Suppress normal output; instead print a count of matching lines for each input file.",
+    )
+    output_args.add_argument(
+        "-o",
+        "--only-matching",
+        action="store_true",
+        help="Print only the matched (non-empty) parts of a matching line, with each such part on a separate output line.",
+    )
+    output_args.add_argument(
+        "-s",
+        "--no-messages",
+        action="store_true",
+        help="Suppress error messages about nonexistent or unreadable files.",
+    )
 
-    prefix_args = parser.add_argument_group('Output Line Prefix Control')
+    prefix_args = parser.add_argument_group("Output Line Prefix Control")
     # Default to Nones in order to tell if user explicitly requested value, instead of default of False.
     filename_group = prefix_args.add_mutually_exclusive_group()
-    filename_group.add_argument('-H', '--with-filename', action='store_true', default=None,
-                                help='Print the file name for each match. This is the default when there is more than one file to search.')
-    filename_group.add_argument('-h', '--no-filename', action='store_true', default=None,
-                                help='Suppress the prefixing of file names on output. This is the default when there is only one file to search.')
-    prefix_args.add_argument('-n', '--line-number', action='store_true',
-                             help='Prefix each line of output with the 1-based line number within its input file.')
+    filename_group.add_argument(
+        "-H",
+        "--with-filename",
+        action="store_true",
+        default=None,
+        help="Print the file name for each match. This is the default when there is more than one file to search.",
+    )
+    filename_group.add_argument(
+        "-h",
+        "--no-filename",
+        action="store_true",
+        default=None,
+        help="Suppress the prefixing of file names on output. This is the default when there is only one file to search.",
+    )
+    prefix_args.add_argument(
+        "-n",
+        "--line-number",
+        action="store_true",
+        help="Prefix each line of output with the 1-based line number within its input file.",
+    )
 
-    selection_args = parser.add_argument_group('File and Directory Selection')
-    selection_args.add_argument('-a', '--text', action='store_true',
-                                help='Process a binary file as if it were text; this is equivalent to the --binary-files=text option. '
-                                     '(Dummy option for cross-compatibility with grep. Files are always processed as binary.)')
+    selection_args = parser.add_argument_group("File and Directory Selection")
+    selection_args.add_argument(
+        "-a",
+        "--text",
+        action="store_true",
+        help="Process a binary file as if it were text; this is equivalent to the --binary-files=text option. "
+        "(Dummy option for cross-compatibility with grep. Files are always processed as binary.)",
+    )
 
     # Arguments not reserved by "grep" (unique to this command):
-    hyper_args = parser.add_argument_group('Unique arguments to hyperscanner')
-    hyper_args.add_argument('-t', '--total', action='store_true',
-                            help='Suppress normal output; instead print a count of matching lines across all input files.')
-    hyper_args.add_argument('--no-gnu', dest='gnu_regexp', action='store_false',
-                            help='Disable conversions that modify the regex for GNU grep compatibility. Only performed with BRE and ERE patterns. Example: \\< swapped with \\b')
-    hyper_args.add_argument('--no-order', dest='ordered', action='store_false',
-                            help='Print results as files finish, instead of waiting for previous files to complete.')
-    hyper_args.add_argument('--no-sort', dest='sort_files', action='store_false',
-                            help='Keep original file order instead of naturally sorting.')
-    hyper_args.add_argument('--mp', action='store_false', dest='use_multithreading',
-                            help='Use multiprocessing pool instead of multithreading. May help print extremely large results faster (1M+).')
+    hyper_args = parser.add_argument_group("Unique arguments to hyperscanner")
+    hyper_args.add_argument(
+        "-t",
+        "--total",
+        action="store_true",
+        help="Suppress normal output; instead print a count of matching lines across all input files.",
+    )
+    hyper_args.add_argument(
+        "--no-gnu",
+        dest="gnu_regexp",
+        action="store_false",
+        help="Disable conversions that modify the regex for GNU grep compatibility. Only performed with BRE and ERE patterns. Example: \\< swapped with \\b",
+    )
+    hyper_args.add_argument(
+        "--no-order",
+        dest="ordered",
+        action="store_false",
+        help="Print results as files finish, instead of waiting for previous files to complete.",
+    )
+    hyper_args.add_argument(
+        "--no-sort",
+        dest="sort_files",
+        action="store_false",
+        help="Keep original file order instead of naturally sorting.",
+    )
+    hyper_args.add_argument(
+        "--mp",
+        action="store_false",
+        dest="use_multithreading",
+        help="Use multiprocessing pool instead of multithreading. May help print extremely large results faster (1M+).",
+    )
 
     # Attach the parser to allow manually referencing its help output printer.
     parser.set_defaults(parser=parser)
@@ -461,13 +546,13 @@ def main() -> None:
     if not patterns:
         args.parser.print_usage()
         raise SystemExit(2)  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
-    if args.regexp not in ('ere', 'pcre'):
+    if args.regexp not in ("ere", "pcre"):
         try:
             patterns = to_basic_regular_expressions(patterns)
         except ValueError as error:
             print(error)
             raise SystemExit(2) from error  # Match grep behavior of exiting with a 2 (Misuse of shell builtins).
-    if args.gnu_regexp and args.regexp != 'pcre':
+    if args.gnu_regexp and args.regexp != "pcre":
         # GNU patterns are compatible with ERE, but not PCRE. PCRE expects full modern syntax.
         patterns = to_gnu_regular_expressions(patterns)
 
@@ -498,12 +583,12 @@ def main() -> None:
         with_line_number=args.line_number,
         use_multithreading=args.use_multithreading,
         only_matching=args.only_matching,
-        no_messages=args.no_message
+        no_messages=args.no_message,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt as error:
-        raise SystemExit(130) from error  # Exit with 130 for "script exited with ctrl+c".
+    except KeyboardInterrupt as user_interrupt:
+        raise SystemExit(130) from user_interrupt  # Exit with 130 for "script exited with ctrl+c".

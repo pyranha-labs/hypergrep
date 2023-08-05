@@ -14,8 +14,8 @@ def on_match(matches: list, count: int) -> None:
     """
     for index in range(count):
         match = matches[index]
-        line = match.line.decode(errors='ignore')
-        print(f'{match.line_number}:{line.rstrip()}')
+        line = match.line.decode(errors="ignore")
+        print(f"{match.line_number}:{line.rstrip()}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,8 +25,8 @@ def parse_args() -> argparse.Namespace:
         Namespace with all the user arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('pattern', help='Regular expression to use.')
-    parser.add_argument('file', help='File to process. May be uncompressed or gzip compressed.')
+    parser.add_argument("pattern", help="Regular expression to use.")
+    parser.add_argument("file", help="File to process. May be uncompressed or gzip compressed.")
     args = parser.parse_args()
     return args
 
@@ -34,9 +34,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Primary function to scan text file."""
     args = parse_args()
-
     hyper_utils.hyperscan(args.file, [args.pattern], on_match)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
