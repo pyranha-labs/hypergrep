@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include requirements*.txt
+include pyhypergrep/common/shared/libhs.so.5.4.0
+include pyhypergrep/common/shared/libhyperscanner.so
+include pyhypergrep/common/shared/libzstd.so.1.5.0
