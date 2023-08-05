@@ -42,7 +42,7 @@ TEST_CASES = {
                     pattern="p1",
                 ),
             ],
-            "expected": None,
+            "returns": None,
         },
         "mismatched": {
             "args": [
@@ -61,12 +61,12 @@ TEST_CASES = {
     "check_hyperscan_compatibility": {
         "PCRE and Hyperscan compatible": {
             "args": [["foobar"]],
-            "expected": 0,
+            "returns": 0,
         },
         "PCRE compatible but Hyperscan incompatible": {
             # Negative lookbehind example taken from: unit/hyperscan/bad_patterns.cpp
             "args": [["(?<!foo)bar"]],
-            "expected": 4,
+            "returns": 4,
         },
     },
     "get_argparse_files": {
@@ -74,42 +74,42 @@ TEST_CASES = {
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
             ],
-            "expected": ["file1", "file2", "file3"],
+            "returns": ["file1", "file2", "file3"],
         },
         "Leading pattern positional and pattern optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
             ],
-            "expected": ["pattern1", "file1"],
+            "returns": ["pattern1", "file1"],
         },
         "Leading pattern positional and pattern file optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
             ],
-            "expected": ["pattern1", "file1"],
+            "returns": ["pattern1", "file1"],
         },
         "Leading pattern positional, pattern optional, and pattern file optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
             ],
-            "expected": ["pattern1", "file1"],
+            "returns": ["pattern1", "file1"],
         },
         "intermixed pattern positional, trailing file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
             ],
-            "expected": ["pattern1", "file1", "file2"],
+            "returns": ["pattern1", "file1", "file2"],
         },
         "pattern positional, intermixed file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
             ],
-            "expected": ["pattern1", "file1", "file2", "file3", "f4"],
+            "returns": ["pattern1", "file1", "file2", "file3", "f4"],
         },
     },
     "get_argparse_patterns": {
@@ -117,42 +117,42 @@ TEST_CASES = {
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
             ],
-            "expected": ["pattern1"],
+            "returns": ["pattern1"],
         },
         "Leading pattern positional and pattern optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
             ],
-            "expected": ["pattern2"],
+            "returns": ["pattern2"],
         },
         "Leading pattern positional and pattern file optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
             ],
-            "expected": ["filepattern1", "filepattern2"],
+            "returns": ["filepattern1", "filepattern2"],
         },
         "Leading pattern positional, pattern optional, and pattern file optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
             ],
-            "expected": ["pattern2", "filepattern1", "filepattern2"],
+            "returns": ["pattern2", "filepattern1", "filepattern2"],
         },
         "intermixed pattern positional, trailing file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
             ],
-            "expected": ["pattern2", "pattern3"],
+            "returns": ["pattern2", "pattern3"],
         },
         "pattern positional, intermixed file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
                 hyperscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
             ],
-            "expected": ["pattern2", "pattern3"],
+            "returns": ["pattern2", "pattern3"],
         },
     },
     "hyperscan": {
@@ -162,7 +162,7 @@ TEST_CASES = {
                 ["bar"],
                 _dummy_callback,
             ],
-            "expected": [
+            "returns": [
                 "1:foobar",
                 "2:barfoo",
             ],
@@ -176,7 +176,7 @@ TEST_CASES = {
                 ],
                 _dummy_callback,
             ],
-            "expected": [
+            "returns": [
                 "1:foobar",
                 "2:barfoo",
                 "3:food",
@@ -193,7 +193,7 @@ TEST_CASES = {
                 False,
                 False,
             ],
-            "expected": [
+            "returns": [
                 (2, "foobar\n"),
                 (3, "barfoo\n"),
             ],
@@ -211,7 +211,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:foobar",
             ],
         },
@@ -226,7 +226,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": True,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:3:foobar",
             ],
         },
@@ -241,7 +241,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:16",
             ],
         },
@@ -256,7 +256,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 # It is expected for total to not show a file name, it is a total. This ensures expected behavior.
                 "16",
             ],
@@ -272,7 +272,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": True,
             },
-            "expected": [
+            "returns": [
                 "3:foobar",
             ],
         },
@@ -287,7 +287,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "16",
             ],
         },
@@ -302,7 +302,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "16",
             ],
         },
@@ -317,7 +317,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:foobar",
                 "greptest2.txt:foobar",
             ],
@@ -333,7 +333,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": True,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:3:foobar",
                 "greptest2.txt:3:foobar",
             ],
@@ -349,7 +349,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:16",
                 "greptest2.txt:16",
             ],
@@ -365,7 +365,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 # It is expected for total to not show a file name, it is a total. This ensures expected behavior.
                 "32"
             ],
@@ -381,7 +381,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": True,
             },
-            "expected": [
+            "returns": [
                 "3:foobar",
                 "3:foobar",
             ],
@@ -397,7 +397,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "16",
                 "16",
             ],
@@ -413,7 +413,7 @@ TEST_CASES = {
                 "with_file_name": False,
                 "with_line_number": False,
             },
-            "expected": [
+            "returns": [
                 "32",
             ],
         },
@@ -423,7 +423,7 @@ TEST_CASES = {
                 ["fOoBaR"],
             ],
             "kwargs": {"ignore_case": False},
-            "expected": [
+            "returns": [
                 # No match expected.
             ],
         },
@@ -433,14 +433,14 @@ TEST_CASES = {
                 ["fOoBaR"],
             ],
             "kwargs": {"ignore_case": True},
-            "expected": ["foobar"],
+            "returns": ["foobar"],
         },
         "special character exact": {
             "args": [
                 [DUMMY_FILE_1],
                 ["barfoo\\+"],
             ],
-            "expected": [
+            "returns": [
                 "barfoo+",
             ],
         },
@@ -449,7 +449,7 @@ TEST_CASES = {
                 [DUMMY_FILE_1],
                 ["barfoo+"],
             ],
-            "expected": [
+            "returns": [
                 "barfoo",
                 "barfoo+",
             ],
@@ -460,7 +460,7 @@ TEST_CASES = {
                 ["dummy file to test|sync with"],
             ],
             "kwargs": {"only_matching": True},
-            "expected": [
+            "returns": [
                 "dummy file to test",
                 "sync with",
                 "dummy file to test",
@@ -473,7 +473,7 @@ TEST_CASES = {
                 ["dummy file (to|to test)|sync with"],
             ],
             "kwargs": {"only_matching": True},
-            "expected": [
+            "returns": [
                 "dummy file to",
                 "sync with",
                 "dummy file to",
@@ -486,7 +486,7 @@ TEST_CASES = {
                 ["dummy file to test|sync with"],
             ],
             "kwargs": {"only_matching": False},
-            "expected": [
+            "returns": [
                 "# Primary dummy file to test patterns. Keep in sync with greptest2.txt.",
                 "# Primary dummy file to test patterns. Keep in sync with greptest2.txt.",
             ],
@@ -503,7 +503,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": True,
             },
-            "expected": ["greptest1.txt:3:foobar", "greptest1.txt:16:extra foo bar"],
+            "returns": ["greptest1.txt:3:foobar", "greptest1.txt:16:extra foo bar"],
         },
         "Multiple redundant patterns": {
             "args": [
@@ -518,7 +518,7 @@ TEST_CASES = {
                 "with_file_name": True,
                 "with_line_number": True,
             },
-            "expected": [
+            "returns": [
                 "greptest1.txt:3:foobar",
             ],
         },
@@ -528,30 +528,30 @@ TEST_CASES = {
             "args": [
                 shlex.split("p1 f1 f2 f3"),
             ],
-            "expected": argparse.Namespace(
-                files=["f1", "f2", "f3"],
-                pattern="p1",
-            ),
+            "attributes": {
+                "files": ["f1", "f2", "f3"],
+                "pattern": "p1",
+            },
         },
         "intermixed pattern positional, trailing file positionals, and pattern optionals": {
             "args": [
                 shlex.split("-e p2 p1 -e p3 f1 f2"),
             ],
-            "expected": argparse.Namespace(
-                files=["f1", "f2"],
-                pattern="p1",
-                patterns=["p2", "p3"],
-            ),
+            "attributes": {
+                "files": ["f1", "f2"],
+                "pattern": "p1",
+                "patterns": ["p2", "p3"],
+            },
         },
         "pattern positional, intermixed file positionals, and pattern optionals": {
             "args": [
                 shlex.split("p1 f1 -e p2 f2 -e p3 f3 f4"),
             ],
-            "expected": argparse.Namespace(
-                files=["f1", "f2", "f3", "f4"],
-                pattern="p1",
-                patterns=["p2", "p3"],
-            ),
+            "attributes": {
+                "files": ["f1", "f2", "f3", "f4"],
+                "pattern": "p1",
+                "patterns": ["p2", "p3"],
+            },
         },
     },
     "to_basic_regular_expressions": {
@@ -559,25 +559,25 @@ TEST_CASES = {
             "args": [
                 ["test"],
             ],
-            "expected": ["test"],
+            "returns": ["test"],
         },
         "no changes, BRE compatible special characters": {
             "args": [
                 ["^test.*[test]$"],
             ],
-            "expected": ["^test.*[test]$"],
+            "returns": ["^test.*[test]$"],
         },
         "BRE and PCRE special characters": {
             "args": [
                 ["^test.*[test]+?(){}|$"],
             ],
-            "expected": [r"^test.*[test]\+\?\(\)\{\}\|$"],
+            "returns": [r"^test.*[test]\+\?\(\)\{\}\|$"],
         },
         "BRE, PCRE, and escaped special characters": {
             "args": [
                 [r"^test.*[test]+?(){}|\^\$\*\.\[\]\+\?\(\)\{\}\|$"],
             ],
-            "expected": [r"^test.*[test]\+\?\(\)\{\}\|\^\$\*\.\[\]+?(){}|$"],
+            "returns": [r"^test.*[test]\+\?\(\)\{\}\|\^\$\*\.\[\]+?(){}|$"],
         },
         "Valid as PCRE, but not valid as BRE": {
             "args": [
@@ -591,19 +591,19 @@ TEST_CASES = {
             "args": [
                 ["<foo>"],
             ],
-            "expected": ["<foo>"],
+            "returns": ["<foo>"],
         },
         "GNU word boundaries swapped": {
             "args": [
                 [r"<foo>\<foo\>"],
             ],
-            "expected": [r"<foo>\bfoo\b"],
+            "returns": [r"<foo>\bfoo\b"],
         },
         "GNU word boundaries swapped, escaped boundaries skipped": {
             "args": [
                 [r"<foo>\<foo\>\\<foo\\>"],
             ],
-            "expected": [r"<foo>\bfoo\b\\<foo\\>"],
+            "returns": [r"<foo>\bfoo\b\\<foo\\>"],
         },
     },
 }
@@ -619,57 +619,14 @@ def no_file_load(monkeypatch: Any) -> None:
     monkeypatch.setattr(builtins, "open", mock_opener)
 
 
-def argparse_namespace_comparator(result: argparse.Namespace, expected_result: argparse.Namespace) -> None:
-    """Helper to simplify argparse namespace testing by only comparing declared values in an expected result.
-
-    Args:
-        result: Actual result from a test containing all namespace values.
-        expected_result: User defined result containing only values to compare.
-
-    Raises:
-        AssertionError if any of the values in expected result do not match result.
-    """
-    for key, value in expected_result.__dict__.items():
-        assert getattr(result, key) == value
-
-
-def run_basic_test_case(test_case: dict, context: Callable, comparator: Callable | None = None) -> None:
-    """Run a basic test_case configuration against the given context.
-
-    Args:
-        test_case: A dictionary containing configuration parameters for testing a callable.
-        context: A callable to pass args and kwargs that will return value to compare.
-        comparator: A function to use for comparing the expected_results and result.
-            Defaults to doing a direct "==" comparison.
-
-    Example:
-        test_case (test raising an error) = {'raises': ValueError, 'kwargs': {'value': None}}
-        test_case (test getting expected result) = {'expected': 10, 'args': [5, 12]}
-    """
-    args = test_case.get("args", [])
-    kwargs = test_case.get("kwargs", {})
-    raises = test_case.get("raises")
-    if raises:
-        with pytest.raises(raises):
-            context(*args, **kwargs)
-    else:
-        expected = test_case.get("expected")
-        result = context(*args, **kwargs)
-        message = f"Got an unexpected result.\n\nExpected: {expected}\n\nActual: {result}"
-        if comparator:
-            comparator(result, expected)
-        else:
-            assert result == expected, message
-
-
 @pytest.mark.parametrize(
     "test_case",
     list(TEST_CASES["check_hyperscan_compatibility"].values()),
     ids=list(TEST_CASES["check_hyperscan_compatibility"].keys()),
 )
-def test_check_hyperscan_compatibility(test_case: dict) -> None:
+def test_check_hyperscan_compatibility(test_case: dict, function_tester: Callable) -> None:
     """Unit tests for verifying Hyperscan pattern compatibility."""
-    run_basic_test_case(test_case, hyper_utils.check_hyperscan_compatibility)
+    function_tester(test_case, hyper_utils.check_hyperscan_compatibility)
 
 
 @pytest.mark.parametrize(
@@ -677,9 +634,9 @@ def test_check_hyperscan_compatibility(test_case: dict) -> None:
     list(TEST_CASES["get_argparse_files"].values()),
     ids=list(TEST_CASES["get_argparse_files"].keys()),
 )
-def test_get_argparse_files(test_case: dict) -> None:
+def test_get_argparse_files(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_files function."""
-    run_basic_test_case(test_case, hyperscanner.get_argparse_files)
+    function_tester(test_case, hyperscanner.get_argparse_files)
 
 
 @pytest.mark.parametrize(
@@ -687,9 +644,9 @@ def test_get_argparse_files(test_case: dict) -> None:
     list(TEST_CASES["get_argparse_patterns"].values()),
     ids=list(TEST_CASES["get_argparse_patterns"].keys()),
 )
-def test_get_argparse_patterns(test_case: dict) -> None:
+def test_get_argparse_patterns(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_patterns function."""
-    run_basic_test_case(test_case, hyperscanner.get_argparse_patterns)
+    function_tester(test_case, hyperscanner.get_argparse_patterns)
 
 
 @pytest.mark.parametrize(
@@ -701,9 +658,9 @@ def test_get_argparse_patterns(test_case: dict) -> None:
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
 )
-def test_grep(test_case: dict) -> None:
+def test_grep(test_case: dict, function_tester: Callable) -> None:
     """Tests for grep function."""
-    run_basic_test_case(test_case, hyperscanner.grep)
+    function_tester(test_case, hyperscanner.grep)
 
 
 @pytest.mark.parametrize(
@@ -715,7 +672,7 @@ def test_grep(test_case: dict) -> None:
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
 )
-def test_hyperscan(test_case: dict, capsys: Any) -> None:
+def test_hyperscan(test_case: dict, capsys: Any, function_tester: Callable) -> None:
     """Tests for hyperscan function."""
 
     def _grep_helper(*args: Any, **kwargs: Any) -> list:
@@ -725,17 +682,7 @@ def test_hyperscan(test_case: dict, capsys: Any) -> None:
         stdout = capture.out.splitlines()
         return stdout
 
-    run_basic_test_case(test_case, _grep_helper)
-
-
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["argparse_namespace_comparator"].values()),
-    ids=list(TEST_CASES["argparse_namespace_comparator"].keys()),
-)
-def test_namespace_comparator(test_case: dict) -> None:
-    """Tests for argparse_namespace_comparator function."""
-    run_basic_test_case(test_case, argparse_namespace_comparator)
+    function_tester(test_case, _grep_helper)
 
 
 @pytest.mark.parametrize(
@@ -747,7 +694,7 @@ def test_namespace_comparator(test_case: dict) -> None:
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
 )
-def test_parallel_grep(test_case: dict, capsys: Any) -> None:
+def test_parallel_grep(test_case: dict, capsys: Any, function_tester: Callable) -> None:
     """Tests for parallel_grep function."""
 
     def parallel_grep_helper(*args: Any, **kwargs: Any) -> list:
@@ -760,7 +707,7 @@ def test_parallel_grep(test_case: dict, capsys: Any) -> None:
         cleaned = [line.replace(f"{root}/", "") for line in stdout]
         return cleaned
 
-    run_basic_test_case(test_case, parallel_grep_helper)
+    function_tester(test_case, parallel_grep_helper)
 
 
 @pytest.mark.parametrize(
@@ -768,9 +715,9 @@ def test_parallel_grep(test_case: dict, capsys: Any) -> None:
     list(TEST_CASES["parse_args"].values()),
     ids=list(TEST_CASES["parse_args"].keys()),
 )
-def test_parse_args(test_case: dict) -> None:
+def test_parse_args(test_case: dict, function_tester: Callable) -> None:
     """Tests for parse_args function."""
-    run_basic_test_case(test_case, hyperscanner.parse_args, comparator=argparse_namespace_comparator)
+    function_tester(test_case, hyperscanner.parse_args)
 
 
 @pytest.mark.parametrize(
@@ -778,9 +725,9 @@ def test_parse_args(test_case: dict) -> None:
     list(TEST_CASES["to_basic_regular_expressions"].values()),
     ids=list(TEST_CASES["to_basic_regular_expressions"].keys()),
 )
-def test_to_basic_regular_expressions(test_case: dict) -> None:
+def test_to_basic_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_basic_regular_expressions function."""
-    run_basic_test_case(test_case, hyperscanner.to_basic_regular_expressions)
+    function_tester(test_case, hyperscanner.to_basic_regular_expressions)
 
 
 @pytest.mark.parametrize(
@@ -788,6 +735,6 @@ def test_to_basic_regular_expressions(test_case: dict) -> None:
     list(TEST_CASES["to_gnu_regular_expressions"].values()),
     ids=list(TEST_CASES["to_gnu_regular_expressions"].keys()),
 )
-def test_to_gnu_regular_expressions(test_case: dict) -> None:
+def test_to_gnu_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_gnu_regular_expressions function."""
-    run_basic_test_case(test_case, hyperscanner.to_gnu_regular_expressions)
+    function_tester(test_case, hyperscanner.to_gnu_regular_expressions)
