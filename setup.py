@@ -1,46 +1,78 @@
-"""Setup configuration and dependencies for the pyhypergrep library."""
+"""Set up configuration and dependencies for the pyhypergrep library."""
 
 import os
-import setuptools
+from pathlib import Path
+
+from setuptools import find_packages
+from setuptools import setup
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-# Additional configuration and data files installed with the package
-PACKAGE_DATA = {
-    'pyhypergrep.common.shared': [
-        'libhs.so.5.4.0',
-        'libhyperscanner.so',
-        'libzstd.so.1.5.0',
-    ],
-}
 
-
-def _find_version() -> str:
+def _find_version(module_path: str, file: str = "__init__.py") -> str:
     """Locate semantic version from a text file in a compatible format with setuptools."""
     # Do not import the module within the library, as this can cause an infinite import. Read manually.
-    init_file = os.path.join(ROOT_DIR, 'pyhypergrep', '__init__.py')
-    with open(init_file, 'rt') as file_in:
+    init_file = os.path.join(ROOT_DIR, module_path, file)
+    with open(init_file, "rt", encoding="utf-8") as file_in:
         for line in file_in.readlines():
-            if '__version__' in line:
+            if "__version__" in line:
                 # Example:
-                # __version__ = '1.5.0' -> 1.5.0
-                version = line.split()[2].replace("'", '')
+                # __version__ = "1.2.3" -> 1.2.3
+                version = line.split()[2].replace('"', "")
     return version
 
 
-setuptools.setup(
-    name='pyhypergrep',
-    version=_find_version(),
-    description='Utilities for scanning text files with Intel Hyperscan.',
-    maintainer='David Fritz',
-    maintainer_email='dfrtzdev@gmail.com',
-    url='https://github.com/dfrtz/pyhypergrep',
-    packages=setuptools.find_packages(ROOT_DIR, include=['pyhypergrep*'], exclude=['*test']),
-    package_data=PACKAGE_DATA,
-    python_requires='>=3.7',
+def read_requirements_file(extra_type: str | None) -> list[str]:
+    """Read local requirement file basic on the type."""
+    extra_type = f"-{extra_type}" if extra_type else ""
+    with open(f"requirements{extra_type}.txt", encoding="utf-8") as input_file:
+        lines = (line.strip() for line in input_file)
+        return [req for req in lines if req and not req.startswith("#")]
+
+
+setup(
+    name="pyhypergrep",
+    description="Utilities for rapid text file processing using Intel Hyperscan in Python",
+    long_description=Path("README.md").read_text(encoding="utf-8"),
+    long_description_content_type="text/markdown",
+    version=_find_version("pyhypergrep"),
+    author="David Fritz",
+    url="https://github.com/dfrtz/pyhypergrep",
+    project_urls={
+        "Issue Tracker": "https://github.com/dfrtz/pyhypergrep/issues",
+        "Source Code": "https://github.com/dfrtz/pyhypergrep",
+    },
+    license="MIT",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Software Development",
+        "Topic :: Scientific/Engineering",
+        "Typing :: Typed",
+        "Operating System :: POSIX :: Linux",
+    ],
+    platforms=[
+        "Linux",
+    ],
+    test_suite="pytest",
+    packages=find_packages(ROOT_DIR, include=["pyhypergrep*"], exclude=["*test", "tests*"]),
+    include_package_data=True,
+    python_requires=">=3.10",
+    extras_require={
+        "dev": [
+            *read_requirements_file("dev"),
+        ],
+    },
     entry_points={
-        'console_scripts': [
-            'pyhypergrep = pyhypergrep.hyperscanner:main',
+        "console_scripts": [
+            "pyhypergrep = pyhypergrep.hyperscanner:main",
         ]
     },
 )
