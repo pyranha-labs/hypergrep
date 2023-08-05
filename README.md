@@ -21,22 +21,58 @@ For full information on the amazing performance that can be obtained through Int
 [Hyperscan](https://github.com/intel/hyperscan)
 
 
+## Table Of Contents
+
+  * [Compatibility](#compatibility)
+  * [Getting Started](#getting-started)
+    * [Installation](#installation)
+  * [Examples](#examples)
+
+
+## Compatibility
+- Not all regex constructs are supported by Hyperscan in order to guarantee performance. For more information refer to [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
+- Currently only supported on Linux. May be able to be built on Windows/OSX manually.
+
+
+## Getting Started
+
+### Installation
+
+Install PyHyperGrep via git clone:
+```shell
+git clone <path to fork>
+cd pyhypergrep
+pip install .
+```
+
+Or build and install from wheel:
+```shell
+# Build locally.
+git clone <path to fork>
+cd pyhypergrep
+make wheel
+
+# Push dist/pyhypergrep*.tar.gz to environment where it will be installed.
+pip install dist/pyhypergrep*.tar.gz
+```
+
+
 ## Examples
 
-Read a file with the example command:
-```
+Read a file with the example single threaded command:
+```shell
 # pyhypergrep <regex> <file>
 pyhypergrep/scanner.py pattern ./pyhypergrep/pyhypergrep/scanner.py
 ```
 
-Read multiple files with the hyperscanner example command:
-```
+Read multiple files with the multithreaded hyperscanner example command:
+```shell
 # pyhypergrep <regex> <file(s)>
 pyhypergrep pattern ./pyhypergrep/pyhypergrep/scanner.py
 ```
 
 Perform custom operation on match:  
-```
+```python
 import ctypes
 
 from pyhypergrep.common import hyper_utils
@@ -47,9 +83,5 @@ def on_match(matches: list, count: int) -> None:
         line = match.line.decode(errors='ignore')
         print(f'Custom print: {line.rstrip()}')
 
-hyper_utils.hyperscan(<file>, [<pattern>], on_match)
+hyper_utils.hyperscan(file, [pattern], on_match)
 ```
-
-## Limitations
-- Not all regex constructs are supported. For more information refer to [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
-- Currently only supported on Linux. May be able to be built on Windows/OSX with additional tweaks.
