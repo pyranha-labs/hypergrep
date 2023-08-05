@@ -1,12 +1,9 @@
-"""Utilities for scanning text files with Intel Hyperscan"""
+"""Utilities for scanning text files with Intel Hyperscan."""
 
 import ctypes
 import os
 import threading
-
 from typing import Callable
-from typing import List
-from typing import Tuple
 
 _INTEL_HYPERSCAN_LIB = None
 _HYPERSCANNER_LIB = None
@@ -31,9 +28,9 @@ class HyperscannerResult(ctypes.Structure):
     """
 
     _fields_ = [
-        ('id', ctypes.c_uint),
-        ('line_number', ctypes.c_ulonglong),
-        ('line', ctypes.c_char_p),
+        ("id", ctypes.c_uint),
+        ("line_number", ctypes.c_ulonglong),
+        ("line", ctypes.c_char_p),
     ]
 
 
@@ -44,7 +41,7 @@ HYPERSCANNER_CALLBACK_TYPE = ctypes.CFUNCTYPE(
     ctypes.POINTER(HyperscannerResult),
     ctypes.c_int,
     use_errno=False,
-    use_last_error=False
+    use_last_error=False,
 )
 
 
@@ -58,7 +55,7 @@ def _get_hyperscan_lib() -> ctypes.cdll:
     if _INTEL_HYPERSCAN_LIB is None:
         # Load and cache the Hyperscan library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, 'shared', 'libhs.so.5.4.0')
+        lib_path = os.path.join(parent, "shared", "libhs.so.5.4.0")
         _INTEL_HYPERSCAN_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _INTEL_HYPERSCAN_LIB
 
@@ -76,7 +73,7 @@ def _get_hyperscanner_lib() -> ctypes.cdll:
     if _HYPERSCANNER_LIB is None:
         # Load and cache the hyperscanner library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, 'shared', 'libhyperscanner.so')
+        lib_path = os.path.join(parent, "shared", "libhyperscanner.so")
         _HYPERSCANNER_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _HYPERSCANNER_LIB
 
@@ -91,14 +88,14 @@ def _get_zstd_lib() -> ctypes.cdll:
     if _ZSTD_LIB is None:
         # Load and cache the ZSTD library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, 'shared', 'libzstd.so.1.5.0')
+        lib_path = os.path.join(parent, "shared", "libzstd.so.1.5.0")
         _ZSTD_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _ZSTD_LIB
 
 
 def check_hyperscan_compatibility(
-        patterns: list,
-        flags: List[int] = (),
+    patterns: list,
+    flags: list[int] = (),
 ) -> int:
     """Helper to test regex pattern compilation in Intel Hyperscan without scanning a file.
 
@@ -111,7 +108,7 @@ def check_hyperscan_compatibility(
             Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
 
     Returns:
-        ret_code: The response code received from the C backend if there was a failure, 0 otherwise.
+        The response code received from the C backend if there was a failure, 0 otherwise.
     """
     pattern_array, flags_array, ids_array = prepare_hyperscan_patterns(patterns, flags=flags)
     hyperscanner_lib = _get_hyperscanner_lib()
@@ -125,13 +122,13 @@ def check_hyperscan_compatibility(
 
 
 def hyperscan(
-        path: str,
-        patterns: List[str],
-        callback: Callable,
-        flags: List[int] = (),
-        ids: List[int] = (),
-        buffer_size: int = 262140,
-        buffer_count: int = 16,
+    path: str,
+    patterns: list[str],
+    callback: Callable,
+    flags: list[int] = (),
+    ids: list[int] = (),
+    buffer_size: int = 262140,
+    buffer_count: int = 16,
 ) -> int:
     """Read a text file for regex patterns using Intel Hyperscan.
 
@@ -178,6 +175,7 @@ def hyperscan(
             buffer_size,
             buffer_count,
         )
+
     hyperscan_thread = threading.Thread(target=_wrapper, daemon=True)
     hyperscan_thread.start()
     try:
@@ -189,9 +187,9 @@ def hyperscan(
 
 
 def hypergrep(
-        file: str,
-        patterns: List[str],
-) -> Tuple[int, List[str]]:
+    file: str,
+    patterns: list[str],
+) -> tuple[int, list[str]]:
     """Basic reusable grep like function using Intel Hyperscan.
 
     Contrary to the "grep" in the name, it returns the lines instead of printing them. Useful for testing
@@ -206,12 +204,12 @@ def hypergrep(
     """
     lines = []
 
-    def _c_callback(matches: List[HyperscannerResult], count: int) -> None:
+    def _c_callback(matches: list[HyperscannerResult], count: int) -> None:
         """Called by the C library everytime it finds a matching line."""
         nonlocal lines
         for index in range(count):
             match = matches[index]
-            line = match.line.decode(errors='ignore')
+            line = match.line.decode(errors="ignore")
             lines.append(line)
 
     return_code = hyperscan(file, patterns, _c_callback)
@@ -219,10 +217,10 @@ def hypergrep(
 
 
 def prepare_hyperscan_patterns(
-        patterns: List[str],
-        flags: List[int] = (),
-        ids: List[int] = (),
-) -> Tuple[ctypes.Array, ctypes.Array, ctypes.Array]:
+    patterns: list[str],
+    flags: list[int] = (),
+    ids: list[int] = (),
+) -> tuple[ctypes.Array, ctypes.Array, ctypes.Array]:
     """Prepare python regexes and flags for use with Intel Hyperscan.
 
     Args:
@@ -244,14 +242,18 @@ def prepare_hyperscan_patterns(
         # HS_FLAG_SINGLEMATCH to stop after first callback for a pattern.
         flags = [HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH for _ in patterns]
     if len(flags) != len(patterns):
-        raise ValueError(f'Found {len(flags)} flags, expecting {len(patterns)}. Hyperscan flags must be provided for each regex to compile the database.')
+        raise ValueError(
+            f"Found {len(flags)} flags, expecting {len(patterns)}. Hyperscan flags must be provided for each regex to compile the database."
+        )
 
     if not ids:
         # Set the default group IDs to 0 for the most common usage if none were provided (all patterns in 1 group).
         # This will ensure that searching will stop after the first match, and only 1 callback is received per line.
         ids = [0 for _ in patterns]
     if len(ids) != len(patterns):
-        raise ValueError(f'Found {len(ids)} ids, expecting {len(patterns)}. Hyperscan ids must be provided for each regex to compile the database.')
+        raise ValueError(
+            f"Found {len(ids)} ids, expecting {len(patterns)}. Hyperscan ids must be provided for each regex to compile the database."
+        )
 
     # C string arrays must be created by performing the following:
     # 1. Convert all strings to bytes.

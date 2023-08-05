@@ -1,11 +1,17 @@
 # PyHyperGrep
 
-[![python: python3.7+](https://img.shields.io/badge/python-3.7-blue)](https://docs.python.org/3.7/)
+[![os: linux](https://img.shields.io/badge/os-linux-blue)](https://docs.python.org/3.10/)
+[![python: 3.10+](https://img.shields.io/badge/python-3.10_|_3.11-blue)](https://devguide.python.org/versions)
 [![python style: google](https://img.shields.io/badge/python%20style-google-blue)](https://google.github.io/styleguide/pyguide.html)
-[![code quality: pylint](https://img.shields.io/badge/code%20quality-pylint-green)](https://github.com/PyCQA/pylint)
+[![imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://github.com/PyCQA/isort)
+[![code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![code style: pycodestyle](https://img.shields.io/badge/code%20style-pycodestyle-green)](https://github.com/PyCQA/pycodestyle)
 [![doc style: pydocstyle](https://img.shields.io/badge/doc%20style-pydocstyle-green)](https://github.com/PyCQA/pydocstyle)
-[![license: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](https://www.apache.org/licenses/LICENSE-2.0)
+[![static typing: mypy](https://img.shields.io/badge/static_typing-mypy-green)](https://github.com/python/mypy)
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)
+[![testing: pytest](https://img.shields.io/badge/testing-pytest-yellowgreen)](https://github.com/pytest-dev/pytest)
+[![security: bandit](https://img.shields.io/badge/security-bandit-black)](https://github.com/PyCQA/bandit)
+[![license: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 PyHyperGrep is a Python + Intel Hyperscan Global Regular Expression Processing library. While a standard grep is
 designed to print, this is designed to allow full control over processing matches. The library supports scanning
