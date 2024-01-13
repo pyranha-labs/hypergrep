@@ -37,10 +37,10 @@ setup(
     long_description_content_type="text/markdown",
     version=_find_version("pyhypergrep"),
     author="David Fritz",
-    url="https://github.com/dfrtz/pyhypergrep",
+    url="https://github.com/pyranha-labs/pyhypergrep",
     project_urls={
-        "Issue Tracker": "https://github.com/dfrtz/pyhypergrep/issues",
-        "Source Code": "https://github.com/dfrtz/pyhypergrep",
+        "Issue Tracker": "https://github.com/pyranha-labs/pyhypergrep/issues",
+        "Source Code": "https://github.com/pyranha-labs/pyhypergrep",
     },
     license="MIT",
     classifiers=[
