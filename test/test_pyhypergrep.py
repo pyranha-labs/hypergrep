@@ -619,41 +619,25 @@ def no_file_load(monkeypatch: Any) -> None:
     monkeypatch.setattr(builtins, "open", mock_opener)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["check_hyperscan_compatibility"].values()),
-    ids=list(TEST_CASES["check_hyperscan_compatibility"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["check_hyperscan_compatibility"])
 def test_check_hyperscan_compatibility(test_case: dict, function_tester: Callable) -> None:
     """Unit tests for verifying Hyperscan pattern compatibility."""
     function_tester(test_case, hyper_utils.check_hyperscan_compatibility)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["get_argparse_files"].values()),
-    ids=list(TEST_CASES["get_argparse_files"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["get_argparse_files"])
 def test_get_argparse_files(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_files function."""
     function_tester(test_case, hyperscanner.get_argparse_files)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["get_argparse_patterns"].values()),
-    ids=list(TEST_CASES["get_argparse_patterns"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["get_argparse_patterns"])
 def test_get_argparse_patterns(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_patterns function."""
     function_tester(test_case, hyperscanner.get_argparse_patterns)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["grep"].values()),
-    ids=list(TEST_CASES["grep"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["grep"])
 @pytest.mark.skipif(
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
@@ -663,11 +647,7 @@ def test_grep(test_case: dict, function_tester: Callable) -> None:
     function_tester(test_case, hyperscanner.grep)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["hyperscan"].values()),
-    ids=list(TEST_CASES["hyperscan"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["hyperscan"])
 @pytest.mark.skipif(
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
@@ -685,11 +665,7 @@ def test_hyperscan(test_case: dict, capsys: Any, function_tester: Callable) -> N
     function_tester(test_case, _grep_helper)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["parallel_grep"].values()),
-    ids=list(TEST_CASES["parallel_grep"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["parallel_grep"])
 @pytest.mark.skipif(
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
@@ -710,31 +686,19 @@ def test_parallel_grep(test_case: dict, capsys: Any, function_tester: Callable) 
     function_tester(test_case, parallel_grep_helper)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["parse_args"].values()),
-    ids=list(TEST_CASES["parse_args"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["parse_args"])
 def test_parse_args(test_case: dict, function_tester: Callable) -> None:
     """Tests for parse_args function."""
     function_tester(test_case, hyperscanner.parse_args)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["to_basic_regular_expressions"].values()),
-    ids=list(TEST_CASES["to_basic_regular_expressions"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["to_basic_regular_expressions"])
 def test_to_basic_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_basic_regular_expressions function."""
     function_tester(test_case, hyperscanner.to_basic_regular_expressions)
 
 
-@pytest.mark.parametrize(
-    "test_case",
-    list(TEST_CASES["to_gnu_regular_expressions"].values()),
-    ids=list(TEST_CASES["to_gnu_regular_expressions"].keys()),
-)
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["to_gnu_regular_expressions"])
 def test_to_gnu_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_gnu_regular_expressions function."""
     function_tester(test_case, hyperscanner.to_gnu_regular_expressions)
