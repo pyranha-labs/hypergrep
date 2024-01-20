@@ -19,7 +19,7 @@ HS_FLAG_SINGLEMATCH = 8
 class HyperscannerResult(ctypes.Structure):
     """Information about a regex result used to buffer matches from Intel Hyperscan before callbacks.
 
-    C implementation located in pyhypergrep/common/shared/c/hyperscanner.c.
+    C implementation located in hypergrep/common/shared/c/hyperscanner.c.
 
     Fields:
         id: The index of the pattern that matched the line.
@@ -51,7 +51,7 @@ def _get_hyperscan_lib() -> ctypes.cdll:
     This library will only be used if libhs is not already installed on the system.
     This behaves similar to a module property in that it will only load if not previously loaded.
     """
-    global _INTEL_HYPERSCAN_LIB
+    global _INTEL_HYPERSCAN_LIB  # pylint: disable=global-statement
     if _INTEL_HYPERSCAN_LIB is None:
         # Load and cache the Hyperscan library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
@@ -69,7 +69,7 @@ def _get_hyperscanner_lib() -> ctypes.cdll:
     # These will only be used if the OS does not have the libraries installed already.
     _get_zstd_lib()
     _get_hyperscan_lib()
-    global _HYPERSCANNER_LIB
+    global _HYPERSCANNER_LIB  # pylint: disable=global-statement
     if _HYPERSCANNER_LIB is None:
         # Load and cache the hyperscanner library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
@@ -121,7 +121,7 @@ def check_hyperscan_compatibility(
     return ret_code
 
 
-def hyperscan(
+def hyperscan(  # pylint: disable=too-many-arguments
     path: str,
     patterns: list[str],
     callback: Callable,

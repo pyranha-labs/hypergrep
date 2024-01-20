@@ -1,4 +1,4 @@
-"""Set up configuration and dependencies for the pyhypergrep library."""
+"""Set up configuration and dependencies for the hypergrep library."""
 
 import os
 from pathlib import Path
@@ -31,16 +31,16 @@ def read_requirements_file(extra_type: str | None) -> list[str]:
 
 
 setup(
-    name="pyhypergrep",
+    name="hypergrep",
     description="Utilities for rapid text file processing using Intel Hyperscan in Python",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
-    version=_find_version("pyhypergrep"),
+    version=_find_version("hypergrep"),
     author="David Fritz",
-    url="https://github.com/pyranha-labs/pyhypergrep",
+    url="https://github.com/pyranha-labs/hypergrep",
     project_urls={
-        "Issue Tracker": "https://github.com/pyranha-labs/pyhypergrep/issues",
-        "Source Code": "https://github.com/pyranha-labs/pyhypergrep",
+        "Issue Tracker": "https://github.com/pyranha-labs/hypergrep/issues",
+        "Source Code": "https://github.com/pyranha-labs/hypergrep",
     },
     license="MIT",
     classifiers=[
@@ -62,7 +62,7 @@ setup(
         "Linux",
     ],
     test_suite="pytest",
-    packages=find_packages(ROOT_DIR, include=["pyhypergrep*"], exclude=["*test", "tests*"]),
+    packages=find_packages(ROOT_DIR, include=["hypergrep*"], exclude=["*test", "tests*"]),
     include_package_data=True,
     python_requires=">=3.10",
     extras_require={
@@ -72,7 +72,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "pyhypergrep = pyhypergrep.hyperscanner:main",
+            "hypergrep = hypergrep.hyperscanner:main",
         ]
     },
 )

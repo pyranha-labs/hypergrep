@@ -3,7 +3,7 @@
 # Recommended way to run is through docker on lowest supported Ubuntu version to maximize dependency compatibility.
 # The compiled binaries should be forwards compatible, allowing them to be saved without need to compile per version.
 # Example:
-# docker run --rm -it -v ~/Development/pyhypergrep:/mnt/pyhypergrep ubuntu:trusty bash -c '/mnt/pyhypergrep/pyhypergrep/common/shared/c/build.sh'
+# docker run --rm -it -v ~/Development/hypergrep:/mnt/hypergrep ubuntu:trusty bash -c '/mnt/hypergrep/hypergrep/common/shared/c/build.sh'
 
 # Ensure the whole script exits on failures.
 set -e
@@ -52,14 +52,14 @@ make install
 
 # Compile custom hyperscanner and ZSTD wrapper to position independent code, and then into a shared library.
 # All warnings are failures to enforce clean code.
-cd "${script_dir}"/pyhypergrep/common/shared/c
+cd "${script_dir}"/hypergrep/common/shared/c
 # Must use "-std=c99" to be compatible down to U14.04 (Trusty).
 # Do not quote (SC2046) pkg-config output to ensure arguments expand correctly. Word splitting is required.
 # shellcheck disable=SC2046
 gcc -I "${build_dir}"/zstd/lib -I "${build_dir}"/zstd/zlibWrapper/ -std=c99 -c -Wall -Werror -fpic hyperscanner.c "${build_dir}"/zstd/zlibWrapper/gz*.c "${build_dir}"/zstd/zlibWrapper/zstd_zlibwrapper.c $(pkg-config --cflags --libs libhs libzstd zlib)
 # shellcheck disable=SC2046
-gcc -shared -o "${script_dir}"/pyhypergrep/common/shared/libhyperscanner.so hyperscanner.o gz*.o zstd*.o $(pkg-config --cflags --libs libhs libzstd zlib)
+gcc -shared -o "${script_dir}"/hypergrep/common/shared/libhyperscanner.so hyperscanner.o gz*.o zstd*.o $(pkg-config --cflags --libs libhs libzstd zlib)
 
 # Copy the external shared libraries that were built back to the source for bundling with the hyperscanner as fallbacks.
-cp -v "${build_dir}/hyperscan/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}" "${script_dir}/pyhypergrep/common/shared/libhs.so.${HYPERSCAN_BUILD_VERSION}"
-cp -v "${build_dir}/zstd/lib/libzstd.so.${ZSTD_BUILD_VERSION}" "${script_dir}/pyhypergrep/common/shared/libzstd.so.${ZSTD_BUILD_VERSION}"
+cp -v "${build_dir}/hyperscan/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}" "${script_dir}/hypergrep/common/shared/libhs.so.${HYPERSCAN_BUILD_VERSION}"
+cp -v "${build_dir}/zstd/lib/libzstd.so.${ZSTD_BUILD_VERSION}" "${script_dir}/hypergrep/common/shared/libzstd.so.${ZSTD_BUILD_VERSION}"

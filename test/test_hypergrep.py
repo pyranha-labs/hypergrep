@@ -1,4 +1,4 @@
-"""Test cases for the pyhypergrep module."""
+"""Test cases for the hypergrep module."""
 
 import argparse
 import builtins
@@ -11,8 +11,8 @@ from typing import Callable
 
 import pytest
 
-from pyhypergrep import hyperscanner
-from pyhypergrep.common import hyper_utils
+from hypergrep import hyperscanner
+from hypergrep.common import hyper_utils
 
 
 def _dummy_callback(matches: list, count: int) -> None:

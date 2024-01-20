@@ -1,8 +1,10 @@
+#! /usr/bin/env python3
+
 """Simple Intel Hyperscan file scanner."""
 
 import argparse
 
-from pyhypergrep.common import hyper_utils
+from hypergrep.common import hyper_utils
 
 
 def on_match(matches: list, count: int) -> None:
