@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 """High performance python grep using Intel Hyperscan."""
 
@@ -13,7 +13,7 @@ from typing import Any
 from typing import Generator
 from typing import Iterable
 
-from pyhypergrep.common import hyper_utils
+from hypergrep.common import hyper_utils
 
 
 def _grep_with_index(index: int, args: Iterable) -> tuple[int, Any]:
@@ -583,7 +583,7 @@ def main() -> None:
         with_line_number=args.line_number,
         use_multithreading=args.use_multithreading,
         only_matching=args.only_matching,
-        no_messages=args.no_message,
+        no_messages=args.no_messages,
     )
 
 

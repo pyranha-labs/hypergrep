@@ -1,4 +1,4 @@
-# PyHyperGrep
+# HyperGrep
 
 [![os: linux](https://img.shields.io/badge/os-linux-blue)](https://docs.python.org/3.10/)
 [![python: 3.10+](https://img.shields.io/badge/python-3.10_|_3.11-blue)](https://devguide.python.org/versions)
@@ -13,7 +13,7 @@
 [![security: bandit](https://img.shields.io/badge/security-bandit-black)](https://github.com/PyCQA/bandit)
 [![license: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-PyHyperGrep is a Python + Intel Hyperscan Global Regular Expression Processing library. While a standard grep is
+HyperGrep is a Python + Intel Hyperscan Global Regular Expression Processing library. While a standard grep is
 designed to print, this is designed to allow full control over processing matches. The library supports scanning
 plaintext, gzip, and ztsd compressed files for regular expressions, and customizing the action to take when matched.
 
@@ -38,10 +38,15 @@ For full information on the amazing performance that can be obtained through Int
 
 ### Installation
 
-Install PyHyperGrep via git clone:
+Install HyperGrep via pip:
+```shell
+pip install hypergrep
+```
+
+Or via git clone:
 ```shell
 git clone <path to fork>
-cd pyhypergrep
+cd hypergrep
 pip install .
 ```
 
@@ -49,11 +54,11 @@ Or build and install from wheel:
 ```shell
 # Build locally.
 git clone <path to fork>
-cd pyhypergrep
+cd hypergrep
 make wheel
 
-# Push dist/pyhypergrep*.tar.gz to environment where it will be installed.
-pip install dist/pyhypergrep*.tar.gz
+# Push dist/hypergrep*.tar.gz to environment where it will be installed.
+pip install dist/hypergrep*.tar.gz
 ```
 
 
@@ -61,27 +66,26 @@ pip install dist/pyhypergrep*.tar.gz
 
 Read a file with the example single threaded command:
 ```shell
-# pyhypergrep <regex> <file>
-pyhypergrep/scanner.py pattern ./pyhypergrep/pyhypergrep/scanner.py
+# hypergrep <regex> <file>
+hypergrep/scanner.py pattern ./hypergrep/scanner.py
 ```
 
 Read multiple files with the multithreaded hyperscanner example command:
 ```shell
-# pyhypergrep <regex> <file(s)>
-pyhypergrep pattern ./pyhypergrep/pyhypergrep/scanner.py
+# hypergrep <regex> <file(s)>
+hypergrep pattern ./hypergrep/scanner.py
 ```
 
-Perform custom operation on match:  
+Perform custom operation on match:
 ```python
-import ctypes
-
-from pyhypergrep.common import hyper_utils
+from hypergrep.common import hyper_utils
 
 def on_match(matches: list, count: int) -> None:
     for index in range(count):
         match = matches[index]
         line = match.line.decode(errors='ignore')
         print(f'Custom print: {line.rstrip()}')
+
 
 hyper_utils.hyperscan(file, [pattern], on_match)
 ```
