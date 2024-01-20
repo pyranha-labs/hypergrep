@@ -61,6 +61,10 @@ make wheel
 pip install dist/hypergrep*.tar.gz
 ```
 
+### Contribute
+
+Refer to the [Contributing Guide](CONTRIBUTING.md) for information on how to contribute to this project.
+
 
 ## Examples
 
