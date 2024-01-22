@@ -4,16 +4,10 @@
  * Primary use is through the hyperscan() function, which sends results to an external caller.
  * It can also be built as a standalone executable for manual testing.
  *
- * Build instructions:
- *     Standalone:
- *     gcc -std=c99 -o hyperscanner hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
- *
- *     Shared library (See build.sh for full process including zstd and hyperscan):
- *     gcc -std=c99 -c -Wall -Werror -fpic hyperscanner.c $(pkg-config --cflags --libs libhs libzstd zlib)
- *     gcc -shared -o libhyperscanner.so hyperscanner.o $(pkg-config --cflags --libs libhs libzstd zlib)
+ * See utils/build_hyperscanner.sh for full build process including hyperscan and zstd.
  *
  * Usage:
- *     ./hstest <pattern> <input file>
+ *     ./hyperscanner <pattern> <input file>
  */
 
 #include <errno.h>
