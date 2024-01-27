@@ -34,9 +34,14 @@ For full information on the amazing performance that can be obtained through Int
 
 
 ## Compatibility
-- Supports Ubuntu Trusty (14.04) and above, and similar Linux distros.
-- Not all regex constructs are supported by Hyperscan in order to guarantee performance. For more information refer to [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
-- Currently only supported on Linux. May be able to be built on Windows/OSX manually.
+
+- Supports Python 3.10+
+- Supports Linux systems with x86_64 architecture.
+  - Tested on Ubuntu Trusty (14.04) and above.
+  - Similar Linux distros should work, but are not guaranteed.
+  - May be able to be built on Windows/OSX manually.
+- Not all regex constructs are supported by Hyperscan in order to guarantee performance.
+  - For more information refer to [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
 
 
 ## Getting Started
