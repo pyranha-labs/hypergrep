@@ -7,7 +7,7 @@
 # Set the versions to build so they are consistent throughout the script when updates are performed.
 BOOST_BUILD_VERSION=1.75.0
 HYPERSCAN_BUILD_VERSION=5.4.0
-ZSTD_BUILD_VERSION=1.5.0
+ZSTD_BUILD_VERSION=1.5.5
 
 # Force execution in docker to ensure reproducibility.
 if [ ! -f /.dockerenv ]; then
