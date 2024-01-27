@@ -7,6 +7,7 @@ from hypergrep.utils import HS_FLAG_MULTILINE
 from hypergrep.utils import HS_FLAG_SINGLEMATCH
 from hypergrep.utils import Result
 from hypergrep.utils import check_compatibility
+from hypergrep.utils import configure_libraries
 from hypergrep.utils import grep
 from hypergrep.utils import prepare_patterns
 from hypergrep.utils import scan
