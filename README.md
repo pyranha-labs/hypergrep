@@ -104,6 +104,17 @@ For full information on the amazing performance that can be obtained through Int
     hypergrep.scan(file, [pattern], on_match)
     ```
 
+- Override the `libhs` and/or `libzstd` libraries to use files outside the package.
+Must be called before any other usage `hypergrep`:
+    ```python
+    import hypergrep
+
+    hypergrep.configure_libraries(
+        libhs='/home/myuser/libhs.so.5.mybuild',
+        libzstd='/home/myuser/libzstd.so.1.mybuild',
+    )
+    ```
+
 ### Contribute
 
 Refer to the [Contributing Guide](CONTRIBUTING.md) for information on how to contribute to this project.

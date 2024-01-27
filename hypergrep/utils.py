@@ -5,15 +5,17 @@ import os
 import threading
 from typing import Callable
 
-_INTEL_HYPERSCAN_LIB = None
-_HYPERSCANNER_LIB = None
-_ZSTD_LIB = None
-
 # Flags pulled from hs_compile.h
 HS_FLAG_CASELESS = 1
 HS_FLAG_DOTALL = 2
 HS_FLAG_MULTILINE = 4
 HS_FLAG_SINGLEMATCH = 8
+
+__libhs__ = None
+__libhs_path__ = ""
+__libhyperscanner__ = None
+__libzstd__ = None
+__libzstd_path__ = ""
 
 
 class Result(ctypes.Structure):
@@ -51,13 +53,11 @@ def _get_hyperscan_lib() -> ctypes.cdll:
     This library will only be used if libhs is not already installed on the system.
     This behaves similar to a module property in that it will only load if not previously loaded.
     """
-    global _INTEL_HYPERSCAN_LIB  # pylint: disable=global-statement
-    if _INTEL_HYPERSCAN_LIB is None:
+    global __libhs__  # pylint: disable=global-statement
+    if __libhs__ is None:
         # Load and cache the Hyperscan library to prevent repeat loads within the process.
-        parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "lib", "libhs.so.5.4.2")
-        _INTEL_HYPERSCAN_LIB = ctypes.cdll.LoadLibrary(lib_path)
-    return _INTEL_HYPERSCAN_LIB
+        __libhs__ = ctypes.cdll.LoadLibrary(__libhs_path__)
+    return __libhs__
 
 
 def _get_hyperscanner_lib() -> ctypes.cdll:
@@ -69,13 +69,12 @@ def _get_hyperscanner_lib() -> ctypes.cdll:
     # These will only be used if the OS does not have the libraries installed already.
     _get_zstd_lib()
     _get_hyperscan_lib()
-    global _HYPERSCANNER_LIB  # pylint: disable=global-statement
-    if _HYPERSCANNER_LIB is None:
+    global __libhyperscanner__  # pylint: disable=global-statement
+    if __libhyperscanner__ is None:
         # Load and cache the hyperscanner library to prevent repeat loads within the process.
-        parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "lib", "libhyperscanner.so")
-        _HYPERSCANNER_LIB = ctypes.cdll.LoadLibrary(lib_path)
-    return _HYPERSCANNER_LIB
+        lib_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "lib", "libhyperscanner.so")
+        __libhyperscanner__ = ctypes.cdll.LoadLibrary(lib_path)
+    return __libhyperscanner__
 
 
 def _get_zstd_lib() -> ctypes.cdll:
@@ -84,13 +83,11 @@ def _get_zstd_lib() -> ctypes.cdll:
     This library will only be used if libzstd is not already installed on the system.
     This behaves similar to a module property in that it will only load if not previously loaded.
     """
-    global _ZSTD_LIB  # pylint: disable=global-statement
-    if _ZSTD_LIB is None:
+    global __libzstd__  # pylint: disable=global-statement
+    if __libzstd__ is None:
         # Load and cache the ZSTD library to prevent repeat loads within the process.
-        parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "lib", "libzstd.so.1.5.5")
-        _ZSTD_LIB = ctypes.cdll.LoadLibrary(lib_path)
-    return _ZSTD_LIB
+        __libzstd__ = ctypes.cdll.LoadLibrary(__libzstd_path__)
+    return __libzstd__
 
 
 def check_compatibility(
@@ -119,6 +116,28 @@ def check_compatibility(
         len(pattern_array),
     )
     return ret_code
+
+
+def configure_libraries(
+    libhs: str | None = None,
+    libzstd: str | None = None,
+) -> None:
+    """Set the paths to library files.
+
+    Args:
+        libhs: Path to the hyperscan library object on the local system.
+        libzstd: Path to the zstd library object on the local system.
+    """
+    if libhs:
+        if __libhs__:
+            raise ValueError("libhs already loaded, configuration overrides must be called before library usage")
+        global __libhs_path__  # pylint: disable=global-statement
+        __libhs_path__ = libhs
+    if libzstd:
+        if __libzstd__:
+            raise ValueError("libzstd already loaded, configuration overrides must be called before library usage")
+        global __libzstd_path__  # pylint: disable=global-statement
+        __libzstd_path__ = libzstd
 
 
 def grep(
@@ -272,3 +291,12 @@ def scan(  # pylint: disable=too-many-arguments
     except KeyboardInterrupt:
         ret_code = 130
     return ret_code
+
+
+# Call configuration update at least once to use defaults.
+if not __libzstd_path__:
+    module = os.path.abspath(os.path.dirname(__file__))
+    configure_libraries(
+        libhs=os.path.join(module, "lib", "libhs.so.5.4.2"),
+        libzstd=os.path.join(module, "lib", "libzstd.so.1.5.5"),
+    )
