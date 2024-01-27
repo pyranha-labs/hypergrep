@@ -12,7 +12,7 @@ from typing import Callable
 import pytest
 
 from hypergrep import hyperscanner
-from hypergrep.common import hyper_utils
+from hypergrep import utils
 
 
 def _dummy_callback(matches: list, count: int) -> None:
@@ -622,7 +622,7 @@ def no_file_load(monkeypatch: Any) -> None:
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["check_hyperscan_compatibility"])
 def test_check_hyperscan_compatibility(test_case: dict, function_tester: Callable) -> None:
     """Unit tests for verifying Hyperscan pattern compatibility."""
-    function_tester(test_case, hyper_utils.check_hyperscan_compatibility)
+    function_tester(test_case, utils.check_compatibility)
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["get_argparse_files"])
@@ -657,7 +657,7 @@ def test_hyperscan(test_case: dict, capsys: Any, function_tester: Callable) -> N
 
     def _grep_helper(*args: Any, **kwargs: Any) -> list:
         """Helper to run hyperscan and capture output for comparisons."""
-        hyper_utils.hyperscan(*args, **kwargs)
+        utils.scan(*args, **kwargs)
         capture = capsys.readouterr()
         stdout = capture.out.splitlines()
         return stdout

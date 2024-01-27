@@ -13,7 +13,7 @@ from typing import Any
 from typing import Generator
 from typing import Iterable
 
-from hypergrep.common import hyper_utils
+import hypergrep
 
 
 def _grep_with_index(index: int, args: Iterable) -> tuple[int, Any]:
@@ -77,7 +77,7 @@ def get_argparse_patterns(args: argparse.Namespace) -> list[str]:
             raise ValueError(f"hyperscanner: invalid regex: {error}") from error
     # Perform final validation using Hyperscan. Some regex constructs are PCRE compatible, but not Hyperscan compatible.
     # Unfortunately Hyperscan does not return the exact reason, just a generic non-zero compilation failure return code.
-    if hyper_utils.check_hyperscan_compatibility(all_patterns):
+    if hypergrep.check_compatibility(all_patterns):
         raise ValueError(
             "hyperscanner: incompatible regex: for more information visit https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs"
         )
@@ -146,10 +146,10 @@ def grep(
 
     if valid:
         # Always use hyperscan function defaults, but add caseless if user requested.
-        flags = hyper_utils.HS_FLAG_DOTALL | hyper_utils.HS_FLAG_MULTILINE | hyper_utils.HS_FLAG_SINGLEMATCH
+        flags = hypergrep.HS_FLAG_DOTALL | hypergrep.HS_FLAG_MULTILINE | hypergrep.HS_FLAG_SINGLEMATCH
         if ignore_case:
-            flags |= hyper_utils.HS_FLAG_CASELESS
-        hyper_utils.hyperscan(file, patterns, _c_callback, flags=[flags for _ in patterns])
+            flags |= hypergrep.HS_FLAG_CASELESS
+        hypergrep.scan(file, patterns, _c_callback, flags=[flags for _ in patterns])
     return lines
 
 
