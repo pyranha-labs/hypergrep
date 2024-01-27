@@ -55,7 +55,7 @@ def _get_hyperscan_lib() -> ctypes.cdll:
     if _INTEL_HYPERSCAN_LIB is None:
         # Load and cache the Hyperscan library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "lib", "libhs.so.5.4.0")
+        lib_path = os.path.join(parent, "lib", "libhs.so.5.4.2")
         _INTEL_HYPERSCAN_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _INTEL_HYPERSCAN_LIB
 
