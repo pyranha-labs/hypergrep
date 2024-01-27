@@ -88,7 +88,7 @@ def _get_zstd_lib() -> ctypes.cdll:
     if _ZSTD_LIB is None:
         # Load and cache the ZSTD library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "lib", "libzstd.so.1.5.0")
+        lib_path = os.path.join(parent, "lib", "libzstd.so.1.5.5")
         _ZSTD_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _ZSTD_LIB
 

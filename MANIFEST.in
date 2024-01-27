@@ -3,6 +3,6 @@ include LICENSE
 include requirements*.txt
 include hypergrep/lib/libhs.so.5.4.0
 include hypergrep/lib/libhyperscanner.so
-include hypergrep/lib/libzstd.so.1.5.0
+include hypergrep/lib/libzstd.so.1.5.5
 include hypergrep/lib/c/hyperscanner.c
 include hypergrep/lib/c/hyperscanner.h
