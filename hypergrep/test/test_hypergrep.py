@@ -29,7 +29,8 @@ FAKE_FILES = {
     "regex.txt": "filepattern1\nfilepattern2",
 }
 TEST_FILE = os.path.join(os.path.dirname(__file__), "dummyfile.txt")
-TEST_FILE_ZST = os.path.join(os.path.dirname(__file__), "dummyfile.txt.zst")
+TEST_FILE_GZ = f"{TEST_FILE}.gz"
+TEST_FILE_ZST = f"{TEST_FILE}.zst"
 TEST_CASES = {
     "argparse_namespace_comparator": {
         "matched": {
@@ -168,6 +169,17 @@ TEST_CASES = {
                 "2:barfoo",
             ],
         },
+        "one pattern, gz": {
+            "args": [
+                TEST_FILE_GZ,
+                ["bar"],
+                _dummy_callback,
+            ],
+            "returns": [
+                "1:foobar",
+                "2:barfoo",
+            ],
+        },
         "one pattern, zst": {
             "args": [
                 TEST_FILE_ZST,
@@ -199,6 +211,20 @@ TEST_CASES = {
         "one pattern, no index": {
             "args": [
                 TEST_FILE,
+                ["bar"],
+                False,
+                False,
+                False,
+                False,
+            ],
+            "returns": [
+                (2, "foobar\n"),
+                (3, "barfoo\n"),
+            ],
+        },
+        "one pattern, no index, gz": {
+            "args": [
+                TEST_FILE_GZ,
                 ["bar"],
                 False,
                 False,
