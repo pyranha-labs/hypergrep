@@ -16,10 +16,10 @@ HS_FLAG_MULTILINE = 4
 HS_FLAG_SINGLEMATCH = 8
 
 
-class HyperscannerResult(ctypes.Structure):
+class Result(ctypes.Structure):
     """Information about a regex result used to buffer matches from Intel Hyperscan before callbacks.
 
-    C implementation located in hypergrep/common/shared/c/hyperscanner.c.
+    C implementation located in hypergrep/lib/c/hyperscanner.c.
 
     Fields:
         id: The index of the pattern that matched the line.
@@ -36,9 +36,9 @@ class HyperscannerResult(ctypes.Structure):
 
 # C function type used by hyperscanner to send line match batches back to python.
 # Must be declared after struct class for proper pointer declaration.
-HYPERSCANNER_CALLBACK_TYPE = ctypes.CFUNCTYPE(
+CALLBACK_TYPE = ctypes.CFUNCTYPE(
     None,
-    ctypes.POINTER(HyperscannerResult),
+    ctypes.POINTER(Result),
     ctypes.c_int,
     use_errno=False,
     use_last_error=False,
@@ -55,7 +55,7 @@ def _get_hyperscan_lib() -> ctypes.cdll:
     if _INTEL_HYPERSCAN_LIB is None:
         # Load and cache the Hyperscan library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "shared", "libhs.so.5.4.0")
+        lib_path = os.path.join(parent, "lib", "libhs.so.5.4.0")
         _INTEL_HYPERSCAN_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _INTEL_HYPERSCAN_LIB
 
@@ -73,7 +73,7 @@ def _get_hyperscanner_lib() -> ctypes.cdll:
     if _HYPERSCANNER_LIB is None:
         # Load and cache the hyperscanner library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "shared", "libhyperscanner.so")
+        lib_path = os.path.join(parent, "lib", "libhyperscanner.so")
         _HYPERSCANNER_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _HYPERSCANNER_LIB
 
@@ -88,12 +88,12 @@ def _get_zstd_lib() -> ctypes.cdll:
     if _ZSTD_LIB is None:
         # Load and cache the ZSTD library to prevent repeat loads within the process.
         parent = os.path.abspath(os.path.dirname(__file__))
-        lib_path = os.path.join(parent, "shared", "libzstd.so.1.5.0")
+        lib_path = os.path.join(parent, "lib", "libzstd.so.1.5.0")
         _ZSTD_LIB = ctypes.cdll.LoadLibrary(lib_path)
     return _ZSTD_LIB
 
 
-def check_hyperscan_compatibility(
+def check_compatibility(
     patterns: list,
     flags: list[int] = (),
 ) -> int:
@@ -110,7 +110,7 @@ def check_hyperscan_compatibility(
     Returns:
         The response code received from the C backend if there was a failure, 0 otherwise.
     """
-    pattern_array, flags_array, ids_array = prepare_hyperscan_patterns(patterns, flags=flags)
+    pattern_array, flags_array, ids_array = prepare_patterns(patterns, flags=flags)
     hyperscanner_lib = _get_hyperscanner_lib()
     ret_code = hyperscanner_lib.check_patterns(
         pattern_array,
@@ -121,72 +121,7 @@ def check_hyperscan_compatibility(
     return ret_code
 
 
-def hyperscan(  # pylint: disable=too-many-arguments
-    path: str,
-    patterns: list[str],
-    callback: Callable,
-    flags: list[int] = (),
-    ids: list[int] = (),
-    buffer_size: int = 262140,
-    buffer_count: int = 16,
-) -> int:
-    """Read a text file for regex patterns using Intel Hyperscan.
-
-    Supports GZIP, ZSTD, and Plain Text files.
-
-    Args:
-        path: Location of the file to be read by hyperscan.
-        patterns: Regex patterns in text format used to match lines.
-        callback: Where every regex hit (line index, pattern id, and byte string) are sent.
-            Must match HYPERSCANNER_CALLBACK_TYPE.
-        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
-            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
-            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
-        ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
-            Defaults to: All patterns share the same ID; multiple callbacks for the same line are not received.
-        buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
-        buffer_count: How many line matches to buffer before calling callback.
-            Reduces overhead of C callback calls, at cost of delaying python processing.
-            Basic guidelines:
-                Multithreading + millions of matches = increase limit.
-                Multiprocessing or few matches = decrease limit or leave as is.
-
-    Returns:
-        Response code received from the C backend if there was a failure, 0 otherwise.
-    """
-    pattern_array, flags_array, ids_array = prepare_hyperscan_patterns(patterns, flags=flags, ids=ids)
-
-    # Wrap the callback in the ctype to allow passing to C functions.
-    callback = HYPERSCANNER_CALLBACK_TYPE(callback)
-    hyperscanner_lib = _get_hyperscanner_lib()
-    ret_code = 0
-
-    # NOTE: Do not remove this wrapper or change thread from daemon to ensure that Python receives signals.
-    def _wrapper() -> None:
-        """Wrapper to allow running the CDLL call as non-blocking and allow Python to intercept signals."""
-        nonlocal ret_code
-        ret_code = hyperscanner_lib.hyperscan(
-            path.encode(),
-            pattern_array,
-            flags_array,
-            ids_array,
-            len(pattern_array),
-            callback,
-            buffer_size,
-            buffer_count,
-        )
-
-    hyperscan_thread = threading.Thread(target=_wrapper, daemon=True)
-    hyperscan_thread.start()
-    try:
-        # Hard cap the thread at 1 hour in case anything goes wrong.
-        hyperscan_thread.join(timeout=3600)
-    except KeyboardInterrupt:
-        ret_code = 130
-    return ret_code
-
-
-def hypergrep(
+def grep(
     file: str,
     patterns: list[str],
 ) -> tuple[int, list[str]]:
@@ -204,7 +139,7 @@ def hypergrep(
     """
     lines = []
 
-    def _c_callback(matches: list[HyperscannerResult], count: int) -> None:
+    def _c_callback(matches: list[Result], count: int) -> None:
         """Called by the C library everytime it finds a matching line."""
         nonlocal lines
         for index in range(count):
@@ -212,11 +147,11 @@ def hypergrep(
             line = match.line.decode(errors="ignore")
             lines.append(line)
 
-    return_code = hyperscan(file, patterns, _c_callback)
+    return_code = scan(file, patterns, _c_callback)
     return return_code, lines
 
 
-def prepare_hyperscan_patterns(
+def prepare_patterns(
     patterns: list[str],
     flags: list[int] = (),
     ids: list[int] = (),
@@ -272,3 +207,68 @@ def prepare_hyperscan_patterns(
     ids_array = (ctypes.c_uint * (len(ids)))()
     ids_array[:] = [ctypes.c_uint(id_num) for id_num in ids]
     return pattern_array, flags_array, ids_array
+
+
+def scan(  # pylint: disable=too-many-arguments
+    path: str,
+    patterns: list[str],
+    callback: Callable,
+    flags: list[int] = (),
+    ids: list[int] = (),
+    buffer_size: int = 262140,
+    buffer_count: int = 16,
+) -> int:
+    """Read a text file for regex patterns using Intel Hyperscan.
+
+    Supports GZIP, ZSTD, and Plain Text files.
+
+    Args:
+        path: Location of the file to be read by hyperscan.
+        patterns: Regex patterns in text format used to match lines.
+        callback: Where every regex hit (line index, pattern id, and byte string) are sent.
+            Must match CALLBACK_TYPE.
+        flags: Flags to set on each pattern in order to match. i.e. HS_FLAG_DOTALL
+            Flags must use bitwise OR operator to combine flags. e.g. HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH = 10
+            Defaults to: HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+        ids: IDs to apply to each pattern to group related patterns and prevent separate callbacks.
+            Defaults to: All patterns share the same ID; multiple callbacks for the same line are not received.
+        buffer_size: How large of a buffer to use while reading in chars. Reads up to first newline or len - 1.
+        buffer_count: How many line matches to buffer before calling callback.
+            Reduces overhead of C callback calls, at cost of delaying python processing.
+            Basic guidelines:
+                Multithreading + millions of matches = increase limit.
+                Multiprocessing or few matches = decrease limit or leave as is.
+
+    Returns:
+        Response code received from the C backend if there was a failure, 0 otherwise.
+    """
+    pattern_array, flags_array, ids_array = prepare_patterns(patterns, flags=flags, ids=ids)
+
+    # Wrap the callback in the ctype to allow passing to C functions.
+    callback = CALLBACK_TYPE(callback)
+    hyperscanner_lib = _get_hyperscanner_lib()
+    ret_code = 0
+
+    # NOTE: Do not remove this wrapper or change thread from daemon to ensure that Python receives signals.
+    def _wrapper() -> None:
+        """Wrapper to allow running the CDLL call as non-blocking and allow Python to intercept signals."""
+        nonlocal ret_code
+        ret_code = hyperscanner_lib.hyperscan(
+            path.encode(),
+            pattern_array,
+            flags_array,
+            ids_array,
+            len(pattern_array),
+            callback,
+            buffer_size,
+            buffer_count,
+        )
+
+    hyperscan_thread = threading.Thread(target=_wrapper, daemon=True)
+    hyperscan_thread.start()
+    try:
+        # Hard cap the thread at 1 hour in case anything goes wrong.
+        hyperscan_thread.join(timeout=3600)
+    except KeyboardInterrupt:
+        ret_code = 130
+    return ret_code

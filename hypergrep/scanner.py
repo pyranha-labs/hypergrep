@@ -4,7 +4,7 @@
 
 import argparse
 
-from hypergrep.common import hyper_utils
+import hypergrep
 
 
 def on_match(matches: list, count: int) -> None:
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Primary function to scan text file."""
     args = parse_args()
-    hyper_utils.hyperscan(args.file, [args.pattern], on_match)
+    hypergrep.scan(args.file, [args.pattern], on_match)
 
 
 if __name__ == "__main__":

@@ -73,27 +73,35 @@ For full information on the amazing performance that can be obtained through Int
 
 - Read a file with the example single threaded command:
     ```shell
-    # hypergrep <regex> <file>
+    # hypergrep/scanner.py <regex> <file>
     hypergrep/scanner.py pattern ./hypergrep/scanner.py
     ```
 
 - Read multiple files with the multithreaded example command:
     ```shell
+    # From install:
     # hypergrep <regex> <file(s)>
     hypergrep pattern ./hypergrep/scanner.py
+
+    # From package:
+    # hypergrep/hyperscanner.py <regex> <file>
+    hypergrep/hyperscanner.py pattern ./hypergrep/scanner.py
     ```
 
 - Perform custom operation on match:
     ```python
-    from hypergrep.common import hyper_utils
+    import hypergrep
     
+    file = "./hypergrep/scanner.py"
+    pattern = 'pattern'
+
     def on_match(matches: list, count: int) -> None:
         for index in range(count):
             match = matches[index]
             line = match.line.decode(errors='ignore')
             print(f'Custom print: {line.rstrip()}')
     
-    hyper_utils.hyperscan(file, [pattern], on_match)
+    hypergrep.scan(file, [pattern], on_match)
     ```
 
 ### Contribute

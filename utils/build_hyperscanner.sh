@@ -69,7 +69,7 @@ make -j $(nproc)
 project_dir="$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)"
 
 # Compile custom libhyperscanner and libzstd to position independent code, and then into a shared library.
-cd "${project_dir}"/hypergrep/common/shared/c
+cd "${project_dir}"/hypergrep/lib/c
 # All warnings are failures to enforce clean code.
 # Must use "-std=c99" to be compatible down to U14.04 (Trusty).
 gcc -std=c99 -c -Wall -Werror -fpic hyperscanner.c \
@@ -80,7 +80,7 @@ gcc -std=c99 -c -Wall -Werror -fpic hyperscanner.c \
   -I "${build_dir}"/hyperscan/lib \
   -I "${build_dir}"/hyperscan/src \
   $(pkg-config --cflags --libs zlib)
-gcc -shared -o "${project_dir}"/hypergrep/common/shared/libhyperscanner.so \
+gcc -shared -o "${project_dir}"/hypergrep/lib/libhyperscanner.so \
   hyperscanner.o \
   gz*.o \
   zstd*.o \
@@ -89,5 +89,5 @@ gcc -shared -o "${project_dir}"/hypergrep/common/shared/libhyperscanner.so \
   $(pkg-config --cflags --libs zlib)
 
 # Copy the external shared libraries that were built back to the source for bundling with the hyperscanner as fallbacks.
-cp -v "${build_dir}/hyperscan/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}" "${project_dir}/hypergrep/common/shared/libhs.so.${HYPERSCAN_BUILD_VERSION}"
-cp -v "${build_dir}/zstd/lib/libzstd.so.${ZSTD_BUILD_VERSION}" "${project_dir}/hypergrep/common/shared/libzstd.so.${ZSTD_BUILD_VERSION}"
+cp -v "${build_dir}/hyperscan/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}" "${project_dir}/hypergrep/lib/libhs.so.${HYPERSCAN_BUILD_VERSION}"
+cp -v "${build_dir}/zstd/lib/libzstd.so.${ZSTD_BUILD_VERSION}" "${project_dir}/hypergrep/lib/libzstd.so.${ZSTD_BUILD_VERSION}"
