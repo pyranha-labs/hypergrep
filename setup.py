@@ -72,7 +72,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "hypergrep = hypergrep.hyperscanner:main",
+            "hypergrep = hypergrep.multiscanner:main",
         ]
     },
 )

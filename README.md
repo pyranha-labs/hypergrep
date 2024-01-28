@@ -24,24 +24,41 @@ For full information on the amazing performance that can be obtained through Int
 
 ## Table Of Contents
 
+  * [Key Features](#key-features)
   * [Compatibility](#compatibility)
   * [Getting Started](#getting-started)
     * [Installation](#installation)
-  * [How Tos](#how-tos)
     * [Examples](#examples)
     * [Contribute](#contribute)
     * [Advanced Guides](#advanced-guides)
+  * [FAQ](#faq)
+
+
+## Key Features
+
+- **Simplicity**
+  - No experience with Hyperscan required. Provides "grep" styled interfaces.
+  - No external dependencies, and no building required (on natively supported platforms).
+  - Built in support for compressed and uncompressed files.
+- **Speed**
+  - Uses Hyperscan, a high-performance multiple regex matching library.
+  - Performs read and regex operations outside Python.
+  - Batches results for Python, reducing overhead (customizable).
+- **Parallelism**
+  - Bypasses GIL (Global Interpreter Lock) during read and regex operations to allow proper multithreading.
+  - Python consumer threads (callbacks) are able to handle many producer threads (readers).
 
 
 ## Compatibility
 
 - Supports Python 3.10+
-- Supports Linux systems with x86_64 architecture.
-  - Tested on Ubuntu Trusty (14.04) and above.
-  - Similar Linux distros should work, but are not guaranteed.
-  - May be able to be built on Windows/OSX manually.
-- Not all regex constructs are supported by Hyperscan in order to guarantee performance.
-  - For more information refer to [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
+- Supports Linux systems with x86_64 architecture
+  - Tested on Ubuntu Trusty (14.04) and above
+  - Other Linux distros may work, but are not guaranteed
+  - May be able to be built on Windows/OSX manually
+  - More platforms are planned to be supported (natively) in the future
+- Some regex constructs are not supported by Hyperscan in order to guarantee stable performance
+  - For more information refer to: [Unsupported Constructs](https://intel.github.io/hyperscan/dev-reference/compilation.html#unsupported-constructs)
 
 
 ## Getting Started
@@ -71,29 +88,38 @@ For full information on the amazing performance that can be obtained through Int
     pip install dist/hypergrep*.tar.gz
     ```
 
-
-## How Tos
-
 ### Examples
 
-- Read a file with the example single threaded command:
+- Read one file with the example single threaded command:
     ```shell
     # hypergrep/scanner.py <regex> <file>
     hypergrep/scanner.py pattern ./hypergrep/scanner.py
     ```
 
-- Read multiple files with the multithreaded example command:
+- Read multiple files with the multithreaded command (drop in replacement for `grep` where patterns are compatible):
     ```shell
     # From install:
     # hypergrep <regex> <file(s)>
     hypergrep pattern ./hypergrep/scanner.py
 
     # From package:
-    # hypergrep/hyperscanner.py <regex> <file>
-    hypergrep/hyperscanner.py pattern ./hypergrep/scanner.py
+    # hypergrep/multiscanner.py <regex> <file>
+    hypergrep/multiscanner.py pattern ./hypergrep/scanner.py
     ```
 
-- Perform custom operation on match:
+- Collect all matches from a file, similar to grep, and perform a custom operation on results:
+    ```python
+    import hypergrep
+    
+    file = "./hypergrep/scanner.py"
+    pattern = 'pattern'
+    
+    results, return_code = hypergrep.grep(file, [pattern])
+    for index, line in results:
+        print(f'{index}: {line}')
+    ```
+
+- Manually scan a file and perform a custom operation on match:
     ```python
     import hypergrep
     
@@ -110,20 +136,58 @@ For full information on the amazing performance that can be obtained through Int
     ```
 
 - Override the `libhs` and/or `libzstd` libraries to use files outside the package.
-Must be called before any other usage `hypergrep`:
+Must be called before any other usage of `hypergrep`:
     ```python
     import hypergrep
 
     hypergrep.configure_libraries(
-        libhs='/home/myuser/libhs.so.5.mybuild',
-        libzstd='/home/myuser/libzstd.so.1.mybuild',
+        libhs='/home/myuser/libhs.so.mybuild',
+        libzstd='/home/myuser/libzstd.so.mybuild',
     )
     ```
 
-### Contribute
+### Contributing
 
 Refer to the [Contributing Guide](CONTRIBUTING.md) for information on how to contribute to this project.
 
 ### Advanced Guides
 
-Refer to [Advanced How Tos](docs/HOW_TO.md) for more advanced topics, such as rebuilding the shared objects.
+Refer to [How Tos](docs/HOW_TO.md) for more advanced topics, such as building the shared library objects.
+
+
+## FAQ
+
+#### Q: How does HyperGrep compare to other Hyperscan python libraries?
+
+**A:** HyperGrep has a specific goal: provide a high performance "grep" like interface in python,
+but with more control. It is not intended to be a full set of bindings to Hyperscan. If you need
+full control over the low level backend, there are other python libraries intended for that use case. Here are
+a few of the reasons for the focused goal of this library:
+
+- Simplify developer integration.
+  - No experience with Hyperscan required.
+  - Familiarity with `grep` variants beneficial, but not required.
+- Avoid messy subprocess chains common in "parallel grep" implementations.
+  - Commands like `zgrep` are actually a `zcat` + `grep`. This can lead to 3+ processes per file read.
+  - Subprocessing is messy in general, best to minimize its use as much as possible.
+- Optimize performance.
+  - Reduce callbacks to/from python to reduce overhead.
+  - Allow true multithreading during read and regex matching.
+  - Provide the pattern matched in multi-regex searches, without having to repeat the search in Python.
+
+When it comes to performance, here is an example of the benefit of this design. Due to the performance of
+Hyperscan, it is also often faster than native `grep` variants, even while using python. Scenario setup:
+- 2.10GHz Intel x86_64 Processor
+- ~17M line file (~300M gzip compressed, ~3G uncompressed).
+- ~800 PCRE patterns.
+- Counting only, no extra processing of lines.
+- Each job run 5 times and averaged (lower is better).
+
+|   | Scenario (Uncompressed timings in parenthesis) | HyperGrep     | Full bindings     | zgrep (grep)  |
+|---|------------------------------------------------|---------------|-------------------|---------------|
+| 1 | ~90K matches, 1 pattern                        | 8.2s (2.5s)   | 22.8s (15.5s)     | 12.5s (5.2s)  |
+| 2 | ~900K matches, 10 patterns                     | 9.7s (3.8s)   | 25.7s (16.8s)     | 19.8s (17.3s) |
+| 3 | ~15M matches, ~800 patterns                    | 44.2s (38.1s) | 73.5s (57.7s)     | *             |
+| 4 | Scenario #3 (x4 files), 1 process (4 threads)  | 49.6s (46.8s) | 1432.6s (1302.2s) | *             |
+
+* GNU grep does not allow multiple PCRE patterns natively, and concatenation via "or" failed.

@@ -1,4 +1,4 @@
-# Secondary dummy file to test multi file output formatting. Keep in sync with greptest1.txt.
+# Secondary grep file to test multi file output formatting. Keep in sync with greptest1.txt.
 foo
 foobar
 [foo]
@@ -15,4 +15,4 @@ foo bar
 <foo> bar
 extra foo bar
 extra <foo> bar
-# Secondary dummy file to test multi file output formatting. Keep in sync with greptest1.txt.
+# Secondary grep file to test multi file output formatting. Keep in sync with greptest1.txt.

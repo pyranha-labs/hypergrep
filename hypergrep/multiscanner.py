@@ -4,7 +4,6 @@
 
 import argparse
 import multiprocessing
-import os
 import re
 import sys
 from multiprocessing.pool import ThreadPool
@@ -19,7 +18,7 @@ import hypergrep
 def _grep_with_index(index: int, args: Iterable) -> tuple[int, Any]:
     """Wrapper to run grep and return with an index representing the job ID."""
     try:
-        result = grep(*args)
+        result = hypergrep.grep(*args)
     except Exception as error:  # pylint: disable=broad-except
         result = error
     return index, result
@@ -84,75 +83,6 @@ def get_argparse_patterns(args: argparse.Namespace) -> list[str]:
     return all_patterns
 
 
-def grep(
-    file: str,
-    patterns: list[str],
-    ignore_case: bool,
-    count_only: bool,
-    only_matching: bool,
-    no_messages: bool,
-) -> int | list[tuple[int, str]]:
-    """Search a file for a regex pattern.
-
-    Args:
-        file: Path to a file on the local filesystem.
-        patterns: Regex patterns compatible with Intel Hyperscan.
-        ignore_case: Perform case-insensitive matching.
-        count_only: Whether to count the matches, instead of decode the byte lines and store them.
-        only_matching: Save only the matched (non-empty) parts of a matching line, with each part on a separate line.
-        no_messages: Suppress error messages about nonexistent or unreadable files.
-
-    Returns:
-        Line count, or list of tuples with the line index and matching line.
-
-    Raises:
-        FileNotFoundError if the file does not exist.
-        ValueError if the file is a directory.
-    """
-    compiled_patterns = [re.compile(pattern) for pattern in patterns]
-    lines = [] if not count_only else 0
-
-    def _c_callback(matches: list, count: int) -> None:
-        """Called by the C library everytime it finds a matching line."""
-        nonlocal lines
-        if count_only:
-            lines += count
-        else:
-            if only_matching:
-                # "Only matching" grep behavior converts every line into every match group per line.
-                for index in range(count):
-                    match = matches[index]
-                    line = match.line.decode(errors="ignore")
-                    # NOTE: Do not use findall, only finditer provides the correct results.
-                    for partial in compiled_patterns[match.id].finditer(line):
-                        lines.append((match.line_number + 1, f"{partial.group()}\n"))
-            else:
-                for index in range(count):
-                    match = matches[index]
-                    line = match.line.decode(errors="ignore")
-                    lines.append((match.line_number + 1, line))
-
-    valid = True
-    # Exception messages taken directly from "grep" error messages.
-    # Silent behavior also taken from "grep" to not raise or print a message if path is invalid.
-    if not os.path.exists(file):
-        valid = False
-        if not no_messages:
-            raise FileNotFoundError("No such file or directory")
-    if os.path.isdir(file):
-        valid = False
-        if not no_messages:
-            raise ValueError("is a directory")
-
-    if valid:
-        # Always use hyperscan function defaults, but add caseless if user requested.
-        flags = hypergrep.HS_FLAG_DOTALL | hypergrep.HS_FLAG_MULTILINE | hypergrep.HS_FLAG_SINGLEMATCH
-        if ignore_case:
-            flags |= hypergrep.HS_FLAG_CASELESS
-        hypergrep.scan(file, patterns, _c_callback, flags=[flags for _ in patterns])
-    return lines
-
-
 def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylint: disable=too-many-arguments,too-many-locals
     files: list,
     patterns: list[str],
@@ -199,6 +129,7 @@ def parallel_grep(  # This cannot be shortened due to parallel pool usage. pylin
             # Error message style taken from "grep" output format.
             print(f"hyperscanner: {file_name}: {grep_result}")
             return
+        grep_result, _ = grep_result
         if total_results:
             total += grep_result
         elif count_results:
