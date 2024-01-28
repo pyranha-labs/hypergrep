@@ -2,6 +2,7 @@
 
 import ctypes
 import os
+import re
 import threading
 from typing import Callable
 
@@ -140,10 +141,15 @@ def configure_libraries(
         __libzstd_path__ = libzstd
 
 
-def grep(
+def grep(  # pylint: disable=too-many-arguments
     file: str,
     patterns: list[str],
-) -> tuple[int, list[str]]:
+    ignore_case: bool = False,
+    count_only: bool = False,
+    only_matching: bool = False,
+    no_messages: bool = False,
+    errors: str = "ignore",
+) -> tuple[int | list[tuple[int, str]], int]:
     """Basic reusable grep like function using Intel Hyperscan.
 
     Contrary to the "grep" in the name, it returns the lines instead of printing them. Useful for testing
@@ -152,22 +158,65 @@ def grep(
     Args:
         file: Path to a file on the local filesystem.
         patterns: Regex patterns compatible with Intel Hyperscan.
+        ignore_case: Perform case-insensitive matching.
+        count_only: Whether to count the matches, instead of decode the byte lines and store them.
+        only_matching: Save only the matched (non-empty) parts of a matching line, with each part on a separate line.
+        no_messages: Suppress error messages about nonexistent or unreadable files.
+        errors: Error handling scheme to use for the handling of decoding errors.
+            Refer to python "bytes.decode()" for more information.
 
     Returns:
-        Hyperscan return code, and matching lines.
+        Line count, or list of tuples with the line index and matching line, and return code.
+
+    Raise:
+        FileNotFoundError if the file does not exist.
+        ValueError if the file is a directory.
     """
-    lines = []
+    compiled_patterns = [re.compile(pattern) for pattern in patterns]
+    results = [] if not count_only else 0
 
-    def _c_callback(matches: list[Result], count: int) -> None:
-        """Called by the C library everytime it finds a matching line."""
-        nonlocal lines
-        for index in range(count):
-            match = matches[index]
-            line = match.line.decode(errors="ignore")
-            lines.append(line)
+    # Exception messages taken directly from "grep" error messages.
+    # Silent behavior also taken from "grep" to not raise or print a message if path is invalid.
+    valid = True
+    if not os.path.exists(file):
+        valid = False
+        if not no_messages:
+            raise FileNotFoundError("No such file or directory")
+    if os.path.isdir(file):
+        valid = False
+        if not no_messages:
+            raise ValueError("is a directory")
 
-    return_code = scan(file, patterns, _c_callback)
-    return return_code, lines
+    if valid:
+
+        def _c_callback(matches: list, count: int) -> None:
+            """Called by the C library everytime it finds a batch of matching lines."""
+            nonlocal results
+            if count_only:
+                results += count
+            else:
+                if only_matching:
+                    # "Only matching" grep behavior converts every line into every match group per line.
+                    for index in range(count):
+                        match = matches[index]
+                        line = match.line.decode(errors=errors)
+                        # NOTE: Do not use findall, only finditer provides the correct results.
+                        for partial in compiled_patterns[match.id].finditer(line):
+                            results.append((match.line_number + 1, f"{partial.group()}\n"))
+                else:
+                    for index in range(count):
+                        match = matches[index]
+                        line = match.line.decode(errors=errors)
+                        results.append((match.line_number + 1, line))
+
+        # Always use hyperscan function defaults, but add caseless if user requested.
+        flags = HS_FLAG_DOTALL | HS_FLAG_MULTILINE | HS_FLAG_SINGLEMATCH
+        if ignore_case:
+            flags |= HS_FLAG_CASELESS
+        return_code = scan(file, patterns, _c_callback, flags=[flags for _ in patterns])
+    else:
+        return_code = 1
+    return results, return_code
 
 
 def prepare_patterns(

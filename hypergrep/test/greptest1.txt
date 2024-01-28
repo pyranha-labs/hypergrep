@@ -1,4 +1,4 @@
-# Primary dummy file to test patterns. Keep in sync with greptest2.txt.
+# Primary grep file to test patterns. Keep in sync with greptest2.txt.
 foo
 foobar
 [foo]
@@ -15,4 +15,4 @@ foo bar
 <foo> bar
 extra foo bar
 extra <foo> bar
-# Primary dummy file to test patterns. Keep in sync with greptest2.txt.
+# Primary grep file to test patterns. Keep in sync with greptest2.txt.

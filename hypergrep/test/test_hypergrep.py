@@ -11,11 +11,11 @@ from typing import Callable
 
 import pytest
 
-from hypergrep import hyperscanner
+from hypergrep import multiscanner
 from hypergrep import utils
 
 
-def _dummy_callback(matches: list, count: int) -> None:
+def _basic_callback(matches: list, count: int) -> None:
     """Callback for C library to send results."""
     for index in range(count):
         match = matches[index]
@@ -23,14 +23,15 @@ def _dummy_callback(matches: list, count: int) -> None:
         print(f"{match.line_number}:{line.rstrip()}")
 
 
-DUMMY_FILE_1 = os.path.join(os.path.dirname(__file__), "greptest1.txt")
-DUMMY_FILE_2 = os.path.join(os.path.dirname(__file__), "greptest2.txt")
+TEST_ROOT = os.path.dirname(__file__)
+GREP_FILE_1 = os.path.join(TEST_ROOT, "greptest1.txt")
+GREP_FILE_2 = os.path.join(TEST_ROOT, "greptest2.txt")
 FAKE_FILES = {
     "regex.txt": "filepattern1\nfilepattern2",
 }
-TEST_FILE = os.path.join(os.path.dirname(__file__), "dummyfile.txt")
-TEST_FILE_GZ = f"{TEST_FILE}.gz"
-TEST_FILE_ZST = f"{TEST_FILE}.zst"
+TEST_FILE = os.path.join(TEST_ROOT, "samplefile.txt")
+TEST_FILE_GZ = os.path.join(TEST_ROOT, f"{TEST_FILE}.gz")
+TEST_FILE_ZST = os.path.join(TEST_ROOT, f"{TEST_FILE}.zst")
 TEST_CASES = {
     "argparse_namespace_comparator": {
         "matched": {
@@ -74,42 +75,42 @@ TEST_CASES = {
     "get_argparse_files": {
         "leading pattern positional and file positionals": {
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
+                multiscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
             ],
             "returns": ["file1", "file2", "file3"],
         },
         "Leading pattern positional and pattern optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
             ],
             "returns": ["pattern1", "file1"],
         },
         "Leading pattern positional and pattern file optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
             ],
             "returns": ["pattern1", "file1"],
         },
         "Leading pattern positional, pattern optional, and pattern file optional": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
             ],
             "returns": ["pattern1", "file1"],
         },
         "intermixed pattern positional, trailing file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
+                multiscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
             ],
             "returns": ["pattern1", "file1", "file2"],
         },
         "pattern positional, intermixed file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_files for explanation of why pattern1 is considered a file in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
+                multiscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
             ],
             "returns": ["pattern1", "file1", "file2", "file3", "f4"],
         },
@@ -117,52 +118,52 @@ TEST_CASES = {
     "get_argparse_patterns": {
         "leading pattern positional and file positionals": {
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
+                multiscanner.parse_args(shlex.split("pattern1 file1 file2 file3")),
             ],
             "returns": ["pattern1"],
         },
         "Leading pattern positional and pattern optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -e pattern2 file1")),
             ],
             "returns": ["pattern2"],
         },
         "Leading pattern positional and pattern file optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -f regex.txt file1")),
             ],
             "returns": ["filepattern1", "filepattern2"],
         },
         "Leading pattern positional, pattern optional, and pattern file optional": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
+                multiscanner.parse_args(shlex.split("pattern1 -e pattern2 -f regex.txt file1")),
             ],
             "returns": ["pattern2", "filepattern1", "filepattern2"],
         },
         "intermixed pattern positional, trailing file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
+                multiscanner.parse_args(shlex.split("-e pattern2 pattern1 -e pattern3 file1 file2")),
             ],
             "returns": ["pattern2", "pattern3"],
         },
         "pattern positional, intermixed file positionals, and pattern optionals": {
             # See hyperscanner.get_argparse_patterns for explanation of why pattern1 is not considered a pattern in this scenario.
             "args": [
-                hyperscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
+                multiscanner.parse_args(shlex.split("pattern1 file1 -e pattern2 file2 -e pattern3 file3 f4")),
             ],
             "returns": ["pattern2", "pattern3"],
         },
     },
-    "hyperscan": {
+    "scan": {
         "one pattern": {
             "args": [
                 TEST_FILE,
                 ["bar"],
-                _dummy_callback,
+                _basic_callback,
             ],
             "returns": [
                 "1:foobar",
@@ -173,7 +174,7 @@ TEST_CASES = {
             "args": [
                 TEST_FILE_GZ,
                 ["bar"],
-                _dummy_callback,
+                _basic_callback,
             ],
             "returns": [
                 "1:foobar",
@@ -184,7 +185,7 @@ TEST_CASES = {
             "args": [
                 TEST_FILE_ZST,
                 ["bar"],
-                _dummy_callback,
+                _basic_callback,
             ],
             "returns": [
                 "1:foobar",
@@ -198,7 +199,7 @@ TEST_CASES = {
                     "bar",
                     "food",
                 ],
-                _dummy_callback,
+                _basic_callback,
             ],
             "returns": [
                 "1:foobar",
@@ -217,10 +218,13 @@ TEST_CASES = {
                 False,
                 False,
             ],
-            "returns": [
-                (2, "foobar\n"),
-                (3, "barfoo\n"),
-            ],
+            "returns": (
+                [
+                    (2, "foobar\n"),
+                    (3, "barfoo\n"),
+                ],
+                0,
+            ),
         },
         "one pattern, no index, gz": {
             "args": [
@@ -231,10 +235,13 @@ TEST_CASES = {
                 False,
                 False,
             ],
-            "returns": [
-                (2, "foobar\n"),
-                (3, "barfoo\n"),
-            ],
+            "returns": (
+                [
+                    (2, "foobar\n"),
+                    (3, "barfoo\n"),
+                ],
+                0,
+            ),
         },
         "one pattern, no index, zst": {
             "args": [
@@ -245,16 +252,19 @@ TEST_CASES = {
                 False,
                 False,
             ],
-            "returns": [
-                (2, "foobar\n"),
-                (3, "barfoo\n"),
-            ],
+            "returns": (
+                [
+                    (2, "foobar\n"),
+                    (3, "barfoo\n"),
+                ],
+                0,
+            ),
         },
     },
     "parallel_grep": {
         "single file, with file name": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foobar"],
             ],
             "kwargs": {
@@ -269,7 +279,7 @@ TEST_CASES = {
         },
         "single file, with file name and line index": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foobar"],
             ],
             "kwargs": {
@@ -284,7 +294,7 @@ TEST_CASES = {
         },
         "single file, with file name and count": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foo"],
             ],
             "kwargs": {
@@ -299,7 +309,7 @@ TEST_CASES = {
         },
         "single file, with file name and total": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foo"],
             ],
             "kwargs": {
@@ -315,7 +325,7 @@ TEST_CASES = {
         },
         "single file, no file name, with line index": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foobar"],
             ],
             "kwargs": {
@@ -330,7 +340,7 @@ TEST_CASES = {
         },
         "single file, no file name, with count": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foo"],
             ],
             "kwargs": {
@@ -345,7 +355,7 @@ TEST_CASES = {
         },
         "single file, no file name, with total": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["foo"],
             ],
             "kwargs": {
@@ -360,7 +370,7 @@ TEST_CASES = {
         },
         "multi file, with file name": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foobar"],
             ],
             "kwargs": {
@@ -376,7 +386,7 @@ TEST_CASES = {
         },
         "multi file, with file name and line index": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foobar"],
             ],
             "kwargs": {
@@ -392,7 +402,7 @@ TEST_CASES = {
         },
         "multi file, with file name and count": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foo"],
             ],
             "kwargs": {
@@ -408,7 +418,7 @@ TEST_CASES = {
         },
         "multi file, with file name and total": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foo"],
             ],
             "kwargs": {
@@ -424,7 +434,7 @@ TEST_CASES = {
         },
         "multi file, no file name, with line index": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foobar"],
             ],
             "kwargs": {
@@ -440,7 +450,7 @@ TEST_CASES = {
         },
         "multi file, no file name, with count": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foo"],
             ],
             "kwargs": {
@@ -456,7 +466,7 @@ TEST_CASES = {
         },
         "multi file, no file name, with total": {
             "args": [
-                [DUMMY_FILE_1, DUMMY_FILE_2],
+                [GREP_FILE_1, GREP_FILE_2],
                 ["foo"],
             ],
             "kwargs": {
@@ -471,7 +481,7 @@ TEST_CASES = {
         },
         "case sensitive": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["fOoBaR"],
             ],
             "kwargs": {"ignore_case": False},
@@ -481,7 +491,7 @@ TEST_CASES = {
         },
         "case insensitive": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["fOoBaR"],
             ],
             "kwargs": {"ignore_case": True},
@@ -489,7 +499,7 @@ TEST_CASES = {
         },
         "special character exact": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["barfoo\\+"],
             ],
             "returns": [
@@ -498,7 +508,7 @@ TEST_CASES = {
         },
         "special character regex": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 ["barfoo+"],
             ],
             "returns": [
@@ -508,44 +518,44 @@ TEST_CASES = {
         },
         "only matching with single level groups": {
             "args": [
-                [DUMMY_FILE_1],
-                ["dummy file to test|sync with"],
+                [GREP_FILE_1],
+                ["grep file to test|sync with"],
             ],
             "kwargs": {"only_matching": True},
             "returns": [
-                "dummy file to test",
+                "grep file to test",
                 "sync with",
-                "dummy file to test",
+                "grep file to test",
                 "sync with",
             ],
         },
         "only matching with redundant inner nested level group": {
             "args": [
-                [DUMMY_FILE_1],
-                ["dummy file (to|to test)|sync with"],
+                [GREP_FILE_1],
+                ["grep file (to|to test)|sync with"],
             ],
             "kwargs": {"only_matching": True},
             "returns": [
-                "dummy file to",
+                "grep file to",
                 "sync with",
-                "dummy file to",
+                "grep file to",
                 "sync with",
             ],
         },
         "only matching pattern without only matching enabled": {
             "args": [
-                [DUMMY_FILE_1],
-                ["dummy file to test|sync with"],
+                [GREP_FILE_1],
+                ["grep file to test|sync with"],
             ],
             "kwargs": {"only_matching": False},
             "returns": [
-                "# Primary dummy file to test patterns. Keep in sync with greptest2.txt.",
-                "# Primary dummy file to test patterns. Keep in sync with greptest2.txt.",
+                "# Primary grep file to test patterns. Keep in sync with greptest2.txt.",
+                "# Primary grep file to test patterns. Keep in sync with greptest2.txt.",
             ],
         },
         "multiple unique patterns": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 [
                     "foobar",
                     "extra foo bar",
@@ -559,7 +569,7 @@ TEST_CASES = {
         },
         "Multiple redundant patterns": {
             "args": [
-                [DUMMY_FILE_1],
+                [GREP_FILE_1],
                 [
                     "foobar",
                     "fo{2}bar",
@@ -662,13 +672,36 @@ TEST_CASES = {
 
 
 @pytest.fixture(autouse=True)
-def no_file_load(monkeypatch: Any) -> None:
+def no_file_load(request: pytest.FixtureRequest, monkeypatch: Any) -> None:
     """Prevent tests from loading external files, and instead mock the lines."""
+    disable = False
+    if "no_file_load" in request.keywords:
+        disable = request.node.get_closest_marker("no_file_load").kwargs.get("disable", False)
 
-    def mock_opener(file: str, *args: Any, **kwargs: Any) -> io.StringIO:
-        return io.StringIO(FAKE_FILES.get(file, ""))
+    if not disable:
 
-    monkeypatch.setattr(builtins, "open", mock_opener)
+        def mock_opener(file: str, *args: Any, **kwargs: Any) -> io.StringIO:
+            return io.StringIO(FAKE_FILES.get(file, ""))
+
+        monkeypatch.setattr(builtins, "open", mock_opener)
+
+
+@pytest.mark.no_file_load(disable=True)
+def test_greptest_file_sync() -> None:
+    """Verify the "greptest" files are kept in sync."""
+    with open(GREP_FILE_1, encoding="utf-8") as file_in:
+        file1_contents = file_in.readlines()
+        file1_contents = [line for line in file1_contents if not line.startswith("#")]
+    assert file1_contents, f"Failed to read test file: {GREP_FILE_1}"
+
+    with open(GREP_FILE_2, encoding="utf-8") as file_in:
+        file2_contents = file_in.readlines()
+        file2_contents = [line for line in file2_contents if not line.startswith("#")]
+    assert file2_contents, f"Failed to read test file: {GREP_FILE_2}"
+
+    assert (
+        file1_contents == file2_contents
+    ), f"{GREP_FILE_1} contents differ from {GREP_FILE_2}. Please ensure all content lines match."
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["check_hyperscan_compatibility"])
@@ -680,13 +713,13 @@ def test_check_hyperscan_compatibility(test_case: dict, function_tester: Callabl
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["get_argparse_files"])
 def test_get_argparse_files(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_files function."""
-    function_tester(test_case, hyperscanner.get_argparse_files)
+    function_tester(test_case, multiscanner.get_argparse_files)
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["get_argparse_patterns"])
 def test_get_argparse_patterns(test_case: dict, function_tester: Callable) -> None:
     """Tests for get_argparse_patterns function."""
-    function_tester(test_case, hyperscanner.get_argparse_patterns)
+    function_tester(test_case, multiscanner.get_argparse_patterns)
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["grep"])
@@ -696,10 +729,10 @@ def test_get_argparse_patterns(test_case: dict, function_tester: Callable) -> No
 )
 def test_grep(test_case: dict, function_tester: Callable) -> None:
     """Tests for grep function."""
-    function_tester(test_case, hyperscanner.grep)
+    function_tester(test_case, utils.grep)
 
 
-@pytest.mark.parametrize_test_case("test_case", TEST_CASES["hyperscan"])
+@pytest.mark.parametrize_test_case("test_case", TEST_CASES["scan"])
 @pytest.mark.skipif(
     sys.platform != "linux",
     reason="Hyperscan libraries only support Linux",
@@ -727,12 +760,11 @@ def test_parallel_grep(test_case: dict, capsys: Any, function_tester: Callable) 
 
     def parallel_grep_helper(*args: Any, **kwargs: Any) -> list:
         """Helper to run parallel_grep and capture output for comparisons."""
-        hyperscanner.parallel_grep(*args, **kwargs)
+        multiscanner.parallel_grep(*args, **kwargs)
         capture = capsys.readouterr()
         stdout = capture.out.splitlines()
-        root = os.path.dirname(__file__)
         # Strip off the leading file name in output to keep the tests portable across systems.
-        cleaned = [line.replace(f"{root}/", "") for line in stdout]
+        cleaned = [line.replace(f"{TEST_ROOT}/", "") for line in stdout]
         return cleaned
 
     function_tester(test_case, parallel_grep_helper)
@@ -741,16 +773,16 @@ def test_parallel_grep(test_case: dict, capsys: Any, function_tester: Callable) 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["parse_args"])
 def test_parse_args(test_case: dict, function_tester: Callable) -> None:
     """Tests for parse_args function."""
-    function_tester(test_case, hyperscanner.parse_args)
+    function_tester(test_case, multiscanner.parse_args)
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["to_basic_regular_expressions"])
 def test_to_basic_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_basic_regular_expressions function."""
-    function_tester(test_case, hyperscanner.to_basic_regular_expressions)
+    function_tester(test_case, multiscanner.to_basic_regular_expressions)
 
 
 @pytest.mark.parametrize_test_case("test_case", TEST_CASES["to_gnu_regular_expressions"])
 def test_to_gnu_regular_expressions(test_case: dict, function_tester: Callable) -> None:
     """Tests for to_gnu_regular_expressions function."""
-    function_tester(test_case, hyperscanner.to_gnu_regular_expressions)
+    function_tester(test_case, multiscanner.to_gnu_regular_expressions)
