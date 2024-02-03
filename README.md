@@ -12,6 +12,13 @@
 [![testing: pytest](https://img.shields.io/badge/testing-pytest-yellowgreen)](https://github.com/pytest-dev/pytest)
 [![security: bandit](https://img.shields.io/badge/security-bandit-black)](https://github.com/PyCQA/bandit)
 [![license: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+![maintenance: deprecated](https://img.shields.io/badge/Maintenance%20Status-Deprecated-yellow.svg)
+
+> **Note**: This project had been replaced by [VectorGrep](https://github.com/pyranha-labs/vectorgrep).
+No additional features or enhancements will be made to this library. Due to licensing changes in
+Intel Hyperscan starting in 5.5, all future development besides bug fixes will be dedicated to maintaining
+the [Vectorscan](https://github.com/VectorCamp/vectorscan/) version of this library. Vectorscan/VectorGrep
+also provides more options for increasing portability and supporting multiple architectures.
 
 HyperGrep is a fast (Hyperspeed) Global Regular Expression Processing library for Python. It uses Intel Hyperscan
 to maximize performance, and can be used with multi-threaded or multi-processed applications. While a standard grep
