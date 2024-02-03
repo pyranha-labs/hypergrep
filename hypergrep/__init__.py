@@ -12,4 +12,4 @@ from hypergrep.utils import grep
 from hypergrep.utils import prepare_patterns
 from hypergrep.utils import scan
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
