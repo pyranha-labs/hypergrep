@@ -5,6 +5,7 @@ from hypergrep.utils import HS_FLAG_CASELESS
 from hypergrep.utils import HS_FLAG_DOTALL
 from hypergrep.utils import HS_FLAG_MULTILINE
 from hypergrep.utils import HS_FLAG_SINGLEMATCH
+from hypergrep.utils import RC_INVALID_FILE
 from hypergrep.utils import Result
 from hypergrep.utils import check_compatibility
 from hypergrep.utils import configure_libraries
